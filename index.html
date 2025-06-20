@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theatre Cue Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 800px;
+            padding: 2rem;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        h1 {
+            color: #ffd700;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            color: #ccc;
+            margin-bottom: 3rem;
+        }
+        
+        .version-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .version-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .version-card:hover {
+            border-color: #ffd700;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+        }
+        
+        .version-card.current {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.2);
+        }
+        
+        .version-card.beta {
+            border-color: #ffc107;
+            background: rgba(255, 193, 7, 0.2);
+        }
+        
+        .version-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .version-status {
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        
+        .status-stable {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status-beta {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 0.5rem;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-primary {
+            background: #28a745;
+        }
+        
+        .btn-primary:hover {
+            background: #1e7e34;
+        }
+        
+        .credits {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #444;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+        
+        .credits strong {
+            color: #ffd700;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .version-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎭</div>
+        <h1>Theatre Cue Player</h1>
+        <p class="tagline">Professional audio cue management for educational theatre</p>
+        
+        <div class="version-grid">
+            <div class="version-card beta">
+                <div class="version-number">Version 0.4.1</div>
+                <div class="version-status status-beta">BETA</div>
+                <p>Latest development version with new features:</p>
+                <ul style="text-align: left; margin: 1rem 0;">
+                    <li>Responsive design</li>
+                    <li>VU meter display</li>
+                    <li>Progress indicators</li>
+                    <li>Enhanced next cue display</li>
+                </ul>
+                <a href="versions/v0.4.1/theatre-cue-player.html" class="btn">Try v0.4.1 Beta</a>
+            </div>
+            
+            <div class="version-card current">
+                <div class="version-number">Version 0.3.29</div>
+                <div class="version-status status-stable">STABLE</div>
+                <p>Current stable release with core features:</p>
+                <ul style="text-align: left; margin: 1rem 0;">
+                    <li>Audio & fade cues</li>
+                    <li>Separated loading system</li>
+                    <li>Help system</li>
+                    <li>Professional controls</li>
+                </ul>
+                <a href="versions/v0.3.29/theatre-cue-player.html" class="btn btn-primary">Use v0.3.29 Stable</a>
+            </div>
+        </div>
+        
+        <div style="margin: 2rem 0;">
+            <a href="https://forms.gle/JNS7qw5vzpr4eX5BA" class="btn" target="_blank">🧪 Join Beta Testing</a>
+            <a href="https://github.com/kevin-patrick/theatre-cue-player" class="btn" target="_blank">📦 View on GitHub</a>
+        </div>
+        
+        <div class="credits">
+            <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
+            Blinn College-Brenham Campus</p>
+            <p><strong>Coded by:</strong> Claude.AI</p>
+            <p style="margin-top: 1rem; font-style: italic;">
+                <strong>License:</strong> MIT License – Free to use, modify, and share
+            </p>
+        </div>
+    </div>
+</body>
+</html>
