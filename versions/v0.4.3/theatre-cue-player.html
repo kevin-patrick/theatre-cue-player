@@ -94,18 +94,32 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             border-radius: 4px;
         }
 
-        .cue-table th,
-        .cue-table td {
-            padding: 0.5rem;
-            border: 4px solid #777777;
-            border-radius: 6px;
+        .cue-table th {
+            padding: 0.3rem;
+            border: 2px solid #777777;
+            border-radius: 4px;
             vertical-align: middle;
-            max-width: 150px;
+            max-width: 120px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             background: #333333;
+            min-width: 60px;
         }
+
+        .cue-table td {
+            padding: 0.15rem 0.3rem;  /* <-- Reduced vertical padding */
+            border: 2px solid #777777;
+            border-radius: 4px;
+            vertical-align: middle;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background: #333333;
+            min-width: 60px;
+        }
+        
 
         /* First 3 columns (Cue #, Cue Label, Target) - left aligned */
         .cue-table th:nth-child(-n+3),
