@@ -1,7 +1,7 @@
 <!--
 Theatre Cue Player
-Version 0.4.3 – Last Updated June 20, 2025
-Fixed: Trim End behavior - now properly trims from end instead of setting absolute position
+Version 0.4.4 – Last Updated July 11, 2025
+Added Load Show Folder function to load both audio files and cues in one step
 
 Developed by Kevin Patrick, Blinn College–Brenham Campus
 With code assistance from OpenAI's ChatGPT and Anthropic's Claude
@@ -522,7 +522,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
                 Blinn College-Brenham Campus | kevin.patrick@blinn.edu</p>
                 <p><strong>Coded by:</strong> Claude.AI</p>
-                <p><strong>Version:</strong> 0.4.3 | <strong>Last Update:</strong> June 20, 2025</p>
+                <p><strong>Version:</strong> 0.4.4 | <strong>Last Update:</strong> July 11, 2025</p>
                 <p style="margin-top: 1rem; font-style: italic;">Beta Version - Feedback Welcome</p>
 		<p style="font-size: 0.8rem; color: #aaa; margin-top: 1rem;">
  		<strong>License:</strong> <a href="https://opensource.org/licenses/MIT" style="color: #ffd700;">MIT License</a> – Free to use, modify, and share. </p>
@@ -2240,7 +2240,64 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                     const text = await jsonFile.text();
                     const loadedProject = JSON.parse(text);
                     
-                    if (!loadedProject.cues || !Array.isAr
+                    if (!loadedProject.cues || !Array.isArray(loadedProject.cues)) {
+                        throw new Error('Invalid cue file format - missing cues array');
+                    }
+                    
+                    // Load the cues
+                    project = loadedProject;
+                    currentCueIndex = 0;
+                    jsonLoadSuccess = true;
+                    
+                    console.log(`Loaded ${project.cues.length} cues from ${jsonFile.name}`);
+                    
+                    // Connect cues to audio files
+                    if (project.cues.length > 0) {
+                        console.log('Connecting cues to available audio files...');
+                        let connectedCount = 0;
+                        let missingCount = 0;
+                        
+                        for (let cue of project.cues) {
+                            if (cue.file && projectFiles.has(cue.file)) {
+                                connectedCount++;
+                                console.log(`Connected cue ${cue.cueNumber} to ${cue.file}`);
+                            } else if (cue.file) {
+                                missingCount++;
+                                console.log(`Missing audio file for cue ${cue.cueNumber}: ${cue.file}`);
+                            }
+                        }
+                        
+                        console.log(`Connection summary: ${connectedCount} connected, ${missingCount} missing`);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error loading cue file:', error);
+                    errorMessage = `Error loading cue file ${jsonFiles[0].name}:\n${error.message}\n\nLoaded audio files only.`;
+                    jsonLoadSuccess = false;
+                }
+            }
+            
+            // Show project and update UI
+            showProject();
+            updateCueJumpDisplay();
+            updateUI();
+            
+            // Don't enter Edit Mode - launch directly into Show Mode
+            setEditMode(false);
+            
+            // Show success/warning message
+            let message = `Show folder loaded!\n\n${audioFilesLoaded} audio files available`;
+            
+            if (jsonLoadSuccess) {
+                message += `\n${project.cues.length} cues loaded from ${jsonFiles[0].name}`;
+                message += '\n\nReady to run show! Press GO to start.';
+            } else if (errorMessage) {
+                message += '\n\n⚠️ ' + errorMessage;
+            }
+            
+            alert(message);
+            console.log('=== SHOW FOLDER LOADING COMPLETE ===');
+        });
     </script>
 </body>
 </html>
