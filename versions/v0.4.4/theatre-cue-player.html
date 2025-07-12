@@ -1,7 +1,7 @@
 <!--
 Theatre Cue Player
-Version 0.4.4 – Last Updated July 11, 2025
-Added Load Show Folder function to load both audio files and cues in one step
+Version 0.4.4 – Last Updated July 12, 2025
+Added: Load Show Folder - loads audio files and cue file together
 
 Developed by Kevin Patrick, Blinn College–Brenham Campus
 With code assistance from OpenAI's ChatGPT and Anthropic's Claude
@@ -513,16 +513,16 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             
             <div class="buttons">
                 <button onclick="loadAudioFolder()" class="btn btn-primary btn-lg">Load Audio Folder<span class="help-icon" onclick="showHelp('Load Audio Folder', 'Select a folder containing your audio files (MP3, WAV, etc.)', event)">?</span></button>
-                <button onclick="loadCueFile()" class="btn btn-info btn-lg">Load Cue File<span class="help-icon" onclick="showHelp('Load Cue File', 'Load an existing .json cue file from any location', event)">?</span></button>
-                <button onclick="loadShowFolder()" class="btn btn-warning btn-lg">Load Show Folder<span class="help-icon" onclick="showHelp('Load Show Folder', 'Select a folder containing both audio files and a cue file - one-click setup!', event)">?</span></button>
-                <button onclick="newProject()" class="btn btn-success btn-lg">New Project<span class="help-icon" onclick="showHelp('New Project', 'Start with empty cue list (load audio folder first if needed)', event)">?</span></button>
+                <button onclick="loadCueFile()" class="btn btn-secondary btn-lg">Load Cue File<span class="help-icon" onclick="showHelp('Load Cue File', 'Load an existing .json cue list file', event)">?</span></button>
+                <button onclick="loadShowFolder()" class="btn btn-success btn-lg">Load Show Folder<span class="help-icon" onclick="showHelp('Load Show Folder', 'Select a folder containing both audio files and a cue file - one-click setup!', event)">?</span></button>
+                <button onclick="newProject()" class="btn btn-info btn-lg">New Project<span class="help-icon" onclick="showHelp('New Project', 'Start with an empty cue list', event)">?</span></button>
             </div>
             
             <div class="credits">
                 <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
                 Blinn College-Brenham Campus | kevin.patrick@blinn.edu</p>
                 <p><strong>Coded by:</strong> Claude.AI</p>
-                <p><strong>Version:</strong> 0.4.4 | <strong>Last Update:</strong> July 11, 2025</p>
+                <p><strong>Version:</strong> 0.4.4 | <strong>Last Update:</strong> July 12, 2025</p>
                 <p style="margin-top: 1rem; font-style: italic;">Beta Version - Feedback Welcome</p>
 		<p style="font-size: 0.8rem; color: #aaa; margin-top: 1rem;">
  		<strong>License:</strong> <a href="https://opensource.org/licenses/MIT" style="color: #ffd700;">MIT License</a> – Free to use, modify, and share. </p>
@@ -764,7 +764,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             const input = document.getElementById('showFolderInput');
             input.click();
             console.log('Load show folder dialog opened');
-        
+        }
 
         function saveCueFileAs() {
             const projectName = prompt('Enter a name for your cue file:', 'my-show-cues') || 'cues';
@@ -2268,9 +2268,17 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         }
                         
                         console.log(`Connection summary: ${connectedCount} connected, ${missingCount} missing`);
-                    }
                     
-                } catch (error) {
+                    // IMPORTANT: Decode audio files for connected cues
+                    console.log('Decoding audio files for connected cues...');
+                    for (let cue of project.cues) {
+                        if (cue.file && projectFiles.has(cue.file)) {
+                            await assignFileToCue(cue.cueNumber, cue.file);
+                        }
+                    }
+                }
+                
+            } catch (error) {
                     console.error('Error loading cue file:', error);
                     errorMessage = `Error loading cue file ${jsonFiles[0].name}:\n${error.message}\n\nLoaded audio files only.`;
                     jsonLoadSuccess = false;
