@@ -1,11 +1,12 @@
 <!--
 Theatre Cue Player
-Version 0.4.9 – Last Updated July 16, 2025
-Added: Complete keyboard shortcuts system (Spacebar=GO, Esc=Stop All, arrows, Enter, etc.)
-Added: Real-time progress indicators with elapsed/remaining time and visual progress bars
-Added: Programmable hotkeys (F2-F12) assignable to specific cues
-Added: Visual feedback system for keyboard actions
-Enhanced: Help system with comprehensive keyboard shortcut explanations
+Version 0.5.0 – Last Updated July 17, 2025
+Added: Horizontal master VU meter for real-time audio level monitoring
+Added: Optimized header layout with left-justified show title and right-aligned filename
+Enhanced: Improved Show Control layout with full-width GO button and balanced Stop/Fade buttons
+Enhanced: Streamlined interface - removed redundant "Jump to First" button
+Enhanced: Reorganized Quick Actions section with HELP button placement
+Enhanced: Show name truncation to prevent header overflow
 
 Developed by Kevin Patrick, Blinn College–Brenham Campus
 With code assistance from OpenAI's ChatGPT and Anthropic's Claude
@@ -74,10 +75,11 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
         .show-info {
             display: flex;
-            flex-direction: column;
-            gap: 0.2rem;
-            text-align: left;
-            align-items: flex-start;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            min-width: 300px;
         }
 
         .show-name {
@@ -89,6 +91,10 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             border-radius: 3px;
             transition: background 0.2s;
             text-align: left;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .show-name:hover {
@@ -100,6 +106,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             font-size: 0.75rem;
             font-style: italic;
             text-align: left;
+            max-width: 200px;
         }
 
         .header-controls {
@@ -840,7 +847,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
                 Blinn College-Brenham Campus | kevin.patrick@blinn.edu</p>
                 <p><strong>Coded by:</strong> Claude.AI</p>
-                <p><strong>Version:</strong> 0.4.9 | <strong>Last Update:</strong> July 16, 2025</p>
+                <p><strong>Version:</strong> 0.5.0 | <strong>Last Update:</strong> July 17, 2025</p>
                 <p style="margin-top: 1rem; font-style: italic;">Beta Version - Feedback Welcome</p>
 		<p style="font-size: 0.8rem; color: #aaa; margin-top: 1rem;">
  		<strong>License:</strong> <a href="https://opensource.org/licenses/MIT" style="color: #ffd700;">MIT License</a> – Free to use, modify, and share. </p>
@@ -861,12 +868,11 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 <div class="section">
                     <h3>Show Control</h3>
                     <div class="controls">
-                        <button onclick="goNext()" class="btn btn-primary btn-lg">GO<span class="help-icon" onclick="showHelp('GO Button', 'Play the next cue in sequence and advance to the following cue. Keyboard: Spacebar', event)">?</span></button>
-                        <button onclick="stopAll()" class="btn btn-danger btn-lg">STOP ALL<span class="help-icon" onclick="showHelp('STOP ALL', 'Immediately stop all currently playing audio cues. Keyboard: Escape', event)">?</span></button>
+                        <button onclick="goNext()" class="btn btn-primary btn-lg" style="width: 100%;">GO<span class="help-icon" onclick="showHelp('GO Button', 'Play the next cue in sequence and advance to the following cue. Keyboard: Spacebar', event)">?</span></button>
                     </div>
                     <div class="controls">
-                        <button onclick="fadeAll()" class="btn btn-warning">FADE ALL<span class="help-icon" onclick="showHelp('FADE ALL', 'Fade out all currently playing cues simultaneously over 5 seconds', event)">?</span></button>
-                        <button onclick="toggleHelp()" id="helpToggle" class="btn btn-info">HELP<span class="help-icon" onclick="showHelp('HELP', 'Show/hide help system and enable help icons. Keyboard: F1', event)">?</span></button>
+                        <button onclick="stopAll()" class="btn btn-danger btn-lg" style="flex: 1;">STOP ALL<span class="help-icon" onclick="showHelp('STOP ALL', 'Immediately stop all currently playing audio cues. Keyboard: Escape', event)">?</span></button>
+                        <button onclick="fadeAll()" class="btn btn-warning btn-lg" style="flex: 1;">FADE ALL<span class="help-icon" onclick="showHelp('FADE ALL', 'Fade out all currently playing cues simultaneously over 5 seconds', event)">?</span></button>
                     </div>
                     
                     <div id="helpWindow" class="help-window">
@@ -897,6 +903,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                     </div>
                     <div class="controls">
                         <button onclick="newProject()" class="btn btn-success">New Project<span class="help-icon" onclick="showHelp('New Project', 'Start fresh with empty cue list', event)">?</span></button>
+                        <button onclick="toggleHelp()" id="helpToggle" class="btn btn-info">HELP<span class="help-icon" onclick="showHelp('HELP', 'Show/hide help system and enable help icons. Keyboard: F1', event)">?</span></button>
                     </div>
                 </div>
 
