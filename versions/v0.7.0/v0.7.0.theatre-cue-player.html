@@ -1,6 +1,6 @@
 <!--
 Theatre Cue Player
-Version 0.7.0 – Last Updated July 20, 2025
+Version 0.7.0 – Last Updated July 21, 2025
 
 CHANGELOG v0.7.0:
 - NEW: 📱 Chromebook Screen Optimization (1366x768) - eliminates horizontal scrolling
@@ -171,10 +171,10 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         }
         
 
-        /* First 3 columns (Cue #, Cue Label, Target) - left aligned */
+        /* First 3 columns (Cue #, Cue Label, Target) - center aligned */
         .cue-table th:nth-child(-n+3),
         .cue-table td:nth-child(-n+3) {
-            text-align: left;
+            text-align: center;
         }
 
         /* All other columns - center aligned */
@@ -465,6 +465,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             display: none; /* Hidden by default */
             width: 16px;
             height: 16px;
+            margin-left: 6px;
             background: #ffc107;
             color: #333;
             border-radius: 50%;
@@ -475,15 +476,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             font-weight: bold;
             transition: all 0.2s;
         }
-        
-        .help-mode th {
-            white-space: normal !important; /* Allow wrapping in headers */
-        }
-        
-        .help-mode .help-icon {
-            display: block;
-            margin: 2px auto 0 auto;
-        }
 
         .help-icon:hover {
             background: #ffed4e;
@@ -491,7 +483,13 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         }
 
         .help-mode .help-icon {
+            display: block;
+            margin: 2px auto 0 auto;
+        }
+        
+        .help-mode .help-icon.inline {
             display: inline-block;
+            margin: 0 0 0 6px;
         }
 
         .help-window {
@@ -532,23 +530,16 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             }
         }
         /* Responsive Design */
-        
-        /* NEW: Chromebook optimization (Priority 1) */
-        @media (max-width: 1366px) and (min-width: 1281px) {
-            .sidebar {
-                width: 220px;
-            }
-            
-            .cue-table {
-                font-size: 0.78rem;
-                min-width: 650px; /* Reduced from 750px */
-            }
-            
-            .cue-table th,
-            .cue-table td {
-                padding: 0.22rem; /* Between tablet and desktop */
-            }
-        }
+@media (max-width: 1366px) and (min-width: 1025px) {
+    .cue-table { 
+        min-width: 650px;
+        font-size: 0.78rem;
+    }
+    .cue-table th, .cue-table td { 
+        padding: 0.22rem;
+    }
+    .sidebar { width: 220px; }
+}
 
 @media (max-width: 1280px) {
     .sidebar {
@@ -1019,7 +1010,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
                 Blinn College-Brenham Campus | kevin.patrick@blinn.edu</p>
                 <p><strong>Coded by:</strong> Claude.AI</p>
-                <p><strong>Version:</strong> 0.7.0 | <strong>Last Update:</strong> July 20, 2025</p>
+                <p><strong>Version:</strong> 0.7.0 | <strong>Last Update:</strong> July 21, 2025</p>
                 <p style="margin-top: 1rem; font-style: italic;">Beta Version - Feedback Welcome</p>
 		<p style="font-size: 0.8rem; color: #aaa; margin-top: 1rem;">
  		<strong>License:</strong> <a href="https://opensource.org/licenses/MIT" style="color: #ffd700;">MIT License</a> – Free to use, modify, and share. </p>
@@ -1055,23 +1046,23 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                     <div class="controls">
                         <label>Next Cue:<span class="help-icon" onclick="showHelp('Next Cue', 'Shows which cue will play when you press GO, or type a cue number to jump to', event)">?</span></label>
                         <input type="text" id="cueJumpInput" placeholder="1">
-                        <button onclick="jumpToCue()" class="btn btn-secondary">Jump<span class="help-icon" onclick="showHelp('Jump', 'Jump to the cue number entered above', event)">?</span></button>
+                        <button onclick="jumpToCue()" class="btn btn-secondary">Jump<span class="help-icon" onclick="showHelp('Jump', 'Jump to the cue number entered in the box', event)">?</span></button>
                     </div>
                     
                 </div>
                 
                 <div class="section">
-                    <h3>⌨️ Keyboard Shortcuts<span class="help-icon" onclick="showHelp('Keyboard Shortcuts', 'Essential keyboard controls for fast operation', event)">?</span></h3>
+                    <h3>⌨️ Keyboard Shortcuts<span class="help-icon inline" onclick="showHelp('Keyboard Shortcuts', 'Essential keyboard controls for fast operation', event)">?</span></h3>
                     <div style="font-size: 0.8rem; line-height: 1.4; color: #ccc;">
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Spacebar:</strong> GO<span class="help-icon" onclick="showHelp('Spacebar - GO', 'Press spacebar anywhere to trigger the next cue - fastest way to run a show hands-free', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Esc:</strong> Stop All<span class="help-icon" onclick="showHelp('Escape - Stop All', 'Emergency stop - immediately stops all playing audio and exits help mode', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">↑/↓:</strong> Navigate Cues<span class="help-icon" onclick="showHelp('Arrow Keys - Navigate', 'Move up/down through your cue list. Selected cue shows in Next Cue field', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Enter:</strong> Play Selected<span class="help-icon" onclick="showHelp('Enter - Play Selected', 'Play whichever cue is currently selected (shown in Next Cue field)', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Backspace:</strong> Stop Current<span class="help-icon" onclick="showHelp('Backspace - Stop Current', 'Stop only the currently selected cue if it is playing', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">F1:</strong> Help<span class="help-icon" onclick="showHelp('F1 - Help', 'Toggle help mode on/off - shows help icons and information', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">E:</strong> Edit Mode<span class="help-icon" onclick="showHelp('E - Edit Mode', 'Toggle edit mode to modify cues, add new ones, or assign hotkeys', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Ctrl+S:</strong> Save<span class="help-icon" onclick="showHelp('Ctrl+S - Save', 'Quick save your cue file (only works in Edit Mode)', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Shift+F2-F12:</strong> Assign Hotkey<span class="help-icon" onclick="showHelp('Shift+F Keys - Assign Hotkeys', 'In Edit Mode: Assign F2-F12 keys to specific cues for instant triggering. Great for sound effects!', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Spacebar:</strong> GO<span class="help-icon inline" onclick="showHelp('Spacebar - GO', 'Press spacebar anywhere to trigger the next cue - fastest way to run a show hands-free', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Esc:</strong> Stop All<span class="help-icon inline" onclick="showHelp('Escape - Stop All', 'Emergency stop - immediately stops all playing audio and exits help mode', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">↑/↓:</strong> Navigate Cues<span class="help-icon inline" onclick="showHelp('Arrow Keys - Navigate', 'Move up/down through your cue list. Selected cue shows in Next Cue field', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Enter:</strong> Play Selected<span class="help-icon inline" onclick="showHelp('Enter - Play Selected', 'Play whichever cue is currently selected (shown in Next Cue field)', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Backspace:</strong> Stop Current<span class="help-icon inline" onclick="showHelp('Backspace - Stop Current', 'Stop only the currently selected cue if it is playing', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">F1:</strong> Help<span class="help-icon inline" onclick="showHelp('F1 - Help', 'Toggle help mode on/off - shows help icons and information', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">E:</strong> Edit Mode<span class="help-icon inline" onclick="showHelp('E - Edit Mode', 'Toggle edit mode to modify cues, add new ones, or assign hotkeys', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Ctrl+S:</strong> Save<span class="help-icon inline" onclick="showHelp('Ctrl+S - Save', 'Quick save your cue file (only works in Edit Mode)', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Shift+F2-F12:</strong> Assign Hotkey<span class="help-icon inline" onclick="showHelp('Shift+F Keys - Assign Hotkeys', 'In Edit Mode: Assign F2-F12 keys to specific cues for instant triggering. Great for sound effects!', event)">?</span></div>
                     </div>
                     <div id="hotkeyAssignments" style="margin-top: 0.8rem; font-size: 0.75rem; color: #aaa;">
                         <div onclick="showHotkeyAssignments()" style="cursor: pointer; color: #17a2b8; text-decoration: underline;">📋 View Hotkey Assignments</div>
@@ -1079,7 +1070,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 </div>
 
                 <div class="section">
-                    <h3>Project<span class="help-icon" onclick="showHelp('Project', 'Project management and file operations', event)">?</span></h3>
+                    <h3>Project<span class="help-icon inline" onclick="showHelp('Project', 'Project management and file operations', event)">?</span></h3>
                     <div class="controls">
                         <button onclick="loadAudioFolder()" class="btn btn-primary">Load Audio Folder<span class="help-icon" onclick="showHelp('Load Audio Folder', 'Load audio files from any folder', event)">?</span></button>
                         <button onclick="loadCueFile()" class="btn btn-info">Load Cue File<span class="help-icon" onclick="showHelp('Load Cue File', 'Load cues from a .json file', event)">?</span></button>
@@ -2506,7 +2497,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 nextCueSection.id = 'nextCueSection';
                 nextCueSection.className = 'section';
                 nextCueSection.innerHTML = `
-                    <h3>Currently Playing<span class="help-icon" onclick="showHelp('Currently Playing', 'Shows active cues with real-time progress, elapsed time, and loop information', event)">?</span></h3>
+                    <h3>Currently Playing<span class="help-icon inline" onclick="showHelp('Currently Playing', 'Shows active cues with real-time progress, elapsed time, and loop information', event)">?</span></h3>
                     <div class="master-vu-meter">
                         
                         <div class="vu-meter-bar">
