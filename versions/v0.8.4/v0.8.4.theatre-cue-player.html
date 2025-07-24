@@ -10,6 +10,10 @@ TECHNICAL IMPLEMENTATION:
 - Fixed bug where reloading the same file would not reset the file input
 - Added logic to find the highest existing cue number when adding new cues
 - Improved cue number validation to prevent duplicates
+- Fixed orphan cues - now when a cue is played by its explicit line play button and then the cue is played with the Show Control GO button, the explicit cue stops and the GO button cue plays
+- Update UI upon entering edit mode
+
+Added logic to prevent multiple instances of the same cue from playing simultaneously
 
 Licensed under the MIT License:
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2499,6 +2503,11 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             }
             
             console.log('Edit mode set to:', editMode, 'button found and updated:', !!editBtn);
+            
+            // Force UI update to enable/disable editing
+            if (project.cues && project.cues.length > 0) {
+                updateUI();
+            }
         }
 
         function addAudioCue() {
@@ -3625,6 +3634,14 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             if (!cue) {
                 console.error('Cue not found:', cueNumber);
                 return;
+            }
+
+            // CRITICAL FIX: Prevent multiple instances of the same cue
+            if (playingCues.has(cueNumber)) {
+                console.log('Cue already playing, stopping existing instance first:', cueNumber);
+                stopSingleCue(cueNumber);
+                // Small delay to ensure cleanup is complete
+                await new Promise(resolve => setTimeout(resolve, 50));
             }
 
             // Handle different cue types
