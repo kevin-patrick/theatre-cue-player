@@ -208,109 +208,92 @@
         <h1>Theatre Cue Player</h1>
         <p class="tagline">Professional audio cue management for educational theatre</p>
         
-        <div style="margin: 2rem 0;">
-            <a href="versions/v0.8.4/v0.8.4.theatre-cue-player.html" class="btn btn-latest">🚀 Try Latest v0.8.4 (bug fixes)</a>
-            <a href="versions/v0.8.2/v0.8.2.theatre-cue-player.html" class="btn btn-latest">🚀 Try Latest v0.8.2</a>
+        <div style="margin-bottom: 2rem;">
+            <a href="Tutorial.zip" class="btn btn-primary">📚 Download Tutorial Package</a>
             <a href="tcp_v0_8_1_manual.pdf" class="btn" target="_blank">📖 Download Manual (PDF)</a>
             <a href="tcp_v0_8_1_manual.md" class="btn" target="_blank">📝 View Manual (Markdown)</a>
             <a href="https://forms.gle/JNS7qw5vzpr4eX5BA" class="btn" target="_blank">🧪 Join Beta Testing</a>
             <a href="https://docs.google.com/forms/d/e/1FAIpQLScqp45vJUbPcSGchKQaiR3bbacF0_fZFo3HR0Lpt3tBn-8HVQ/viewform?usp=sharing&ouid=110816342434718244605" class="btn" target="_blank">💬 Beta Testing Feedback</a>
         </div>
         
-        <div class="roadmap">
-            <h3>🗺️ Roadmap</h3>
-            <ul>
-                    <li>Advanced tutorial flows (Editor Help, Playback Help)</li>
-                    <li>Enhanced accessibility features</li>
-            </ul>
-        </div>
-        
-        <div class="credits">
-            <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
-            Blinn College-Brenham Campus</p>
-            <p><strong>Coded by:</strong> Claude.AI</p>
-            <p style="margin-top: 1rem; font-style: italic;">
-                <strong>License:</strong> MIT License – Free to use, modify, and share<br>
-            </p>
-            <br>
-        </div>
-        
-        <div class="version-card latest">
-            <div class="version-number">Version 0.8.4</div>
-            <div class="version-status status-latest">LATEST</div>
-            <p>Critical Bug Fixes - Improved workflow reliability and user experience:</p>
-            <ul style="text-align: left; margin: 1rem 0;">
-                <li>FIXED: 🔄 File reload issue - same cue file can now be reloaded without page refresh</li>
-                <li>FIXED: 🔢 Smart cue numbering - new cues use highest existing number + 1 (not array length)</li>
-                <li>FIXED: ⚠️ Duplicate cue number validation - prevents conflicting cue assignments</li>
-                <li>FIXED: 🎵 Audio instance tracking - eliminates orphaned audio when using both manual play and GO button</li>
-                <li>FIXED: ✏️ Edit Mode activation - table cells become immediately clickable when entering Edit Mode</li>
-                <li>IMPROVED: 🎯 Professional workflow reliability for live show environments</li>
-                <li>PRESERVED: ✅ All existing functionality, tutorial system, and responsive design intact</li>
-            </ul>
-            <a href="versions/v0.8.4/v0.8.4.theatre-cue-player.html" class="btn btn-latest">Try v0.8.4 Latest</a>
-        </div>
-
-        <div class="version-card beta">
-            <div class="version-number">Version 0.8.2</div>
-            <div class="version-status status-beta">PREVIOUS</div>
-            <p>First-Time User Tutorial System - Guided onboarding for educational environments:</p>
-            <ul style="text-align: left; margin: 1rem 0;">
-                <li>NEW: 🎓 Complete first-time user tutorial - guides from landing page to first successful cue</li>
-                <li>SMART: 🧠 Context-aware tutorial button - "First Time Setup" → "Editor Help" → "Playback Help"</li>
-                <li>EDUCATIONAL: 📚 Step-by-step guidance through browser folder picker quirks and recursive search</li>
-                <li>INTUITIVE: ✨ Auto-offered to new users with skip option - localStorage remembers completion</li>
-                <li>INTEGRATED: 🔧 Built on existing help system - non-intrusive overlay with proper z-index</li>
-                <li>ACCESSIBLE: 🎯 Line break support and readable text styling - designed for teacher demonstrations</li>
-                <li>EXTENSIBLE: 🏗️ Framework ready for editor and playback tutorials - foundation for advanced help</li>
-                <li>PRESERVED: ✅ All existing functionality, responsive design, and audio controls intact</li>
-            </ul>
-            <a href="versions/v0.8.2/v0.8.2.theatre-cue-player.html" class="btn">Try v0.8.2</a>
-        </div>
-
-        <div class="version-card beta">
-            <div class="version-number">Version 0.7.2</div>
-            <div class="version-status status-beta">PREVIOUS</div>
-            <p>Enhanced File Management & Advanced Cueing - Professional workflow improvements with intelligent navigation:</p>
-            <ul style="text-align: left; margin: 1rem 0;">
-                <li>NEW: 📁 Folder Structure Display - subfolders shown in file picker (Act 1/Cue 1.mp3)</li>
-                <li>ENHANCED: 🎯 Smart Cue Advancement - GO button now skips entire autofollow/autocontinue chains</li>
-                <li>IMPROVED: 🔧 Jump to Cue functionality - now preserves auto-continue and auto-follow behavior</li>
-                <li>REPLACED: ⚡ "Jump to First" with dedicated first cue button for better workflow</li>
-                <li>OPTIMIZED: 🎛️ Pan UX improvements for better stereo control experience</li>
-                <li>EXPANDED: 📏 File Picker window sizing - larger, responsive design (600px min, 80% max)</li>
-                <li>PRESERVED: ✅ All existing functionality, responsive design, and audio controls intact</li>
-            </ul>
-            <a href="versions/v0.7.2/v0.7.2.theatre-cue-player.html" class="btn">Try v0.7.2</a>
-        </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.7.1</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Streamlined Responsive Design - Clean breakpoint architecture for educational devices:</p>
+        <div class="version-grid">
+            <div class="version-card latest">
+                <div class="version-number">Version 0.8.5</div>
+                <div class="version-status status-latest">LATEST</div>
+                <p>Enhanced Reliability & Professional Workflow - Critical automation fixes and improved user feedback:</p>
                 <ul style="text-align: left; margin: 1rem 0;">
-                    <li>SIMPLIFIED: 🔧 Streamlined responsive breakpoints - eliminated overlapping media queries</li>
-                    <li>NEW: 📐 Precision breakpoint at 1466px - prevents sidebar cutoff on wide screens</li>
-                    <li>IMPROVED: 📏 Progressive sidebar sizing (280px→260px→220px→200px) for optimal space usage</li>
-                    <li>ENHANCED: 🎯 Landscape-focused design - removed complex portrait tablet support for stability</li>
-                    <li>OPTIMIZED: ⚡ Clean cascade logic - no more conflicting responsive rules</li>
-                    <li>FIXED: 🖥️ Header width constraint - eliminated black background peek-through</li>
-                    <li>PRESERVED: ✅ All existing functionality, audio controls, and help system intact</li>
+                    <li>FIXED: 🔧 Emergency Stop (ESC) now completely prevents automation from running after being pressed</li>
+                    <li>IMPROVED: ⏱️ Smart timeout management eliminates delayed automation after stop commands</li>
+                    <li>ENHANCED: 🎯 Next Cue display now accurately shows what will play when GO is pressed</li>
+                    <li>SMART: 🔗 Better handling of complex automation chains (auto-follow and auto-continue)</li>
+                    <li>NEW: ❌ Visual error indicators - missing files now show red background with clear X icons</li>
+                    <li>COMPREHENSIVE: ✅ Automatic validation system checks all cues for problems and data integrity</li>
+                    <li>HELPFUL: ❓ Enhanced help system provides context-specific guidance for troubleshooting issues</li>
+                    <li>PRESERVED: ✅ All existing functionality, tutorial system, and responsive design intact</li>
                 </ul>
-                <a href="versions/v0.7.1/v0.7.1.theatre-cue-player.html" class="btn">Try v0.7.1</a>
+                <a href="versions/v0.8.5/v0.8.5.theatre-cue-player.html" class="btn btn-latest">Try v0.8.5 Latest</a>
+            </div>
+
+            <div class="version-card beta">
+                <div class="version-number">Version 0.8.4</div>
+                <div class="version-status status-beta">PREVIOUS</div>
+                <p>Critical Bug Fixes - Improved workflow reliability and user experience:</p>
+                <ul style="text-align: left; margin: 1rem 0;">
+                    <li>FIXED: 🔄 File reload issue - same cue file can now be reloaded without page refresh</li>
+                    <li>FIXED: 🔢 Smart cue numbering - new cues use highest existing number + 1 (not array length)</li>
+                    <li>FIXED: ⚠️ Duplicate cue number validation - prevents conflicting cue assignments</li>
+                    <li>FIXED: 🎵 Audio instance tracking - eliminates orphaned audio when using both manual play and GO button</li>
+                    <li>FIXED: ✏️ Edit Mode activation - table cells become immediately clickable when entering Edit Mode</li>
+                    <li>IMPROVED: 🎯 Professional workflow reliability for live show environments</li>
+                    <li>PRESERVED: ✅ All existing functionality, tutorial system, and responsive design intact</li>
+                </ul>
+                <a href="versions/v0.8.4/v0.8.4.theatre-cue-player.html" class="btn">Try v0.8.4</a>
+            </div>
+
+            <div class="version-card beta">
+                <div class="version-number">Version 0.8.2</div>
+                <div class="version-status status-beta">PREVIOUS</div>
+                <p>First-Time User Tutorial System - Guided onboarding for educational environments:</p>
+                <ul style="text-align: left; margin: 1rem 0;">
+                    <li>NEW: 🎓 Complete first-time user tutorial - guides from landing page to first successful cue</li>
+                    <li>SMART: 🧠 Context-aware tutorial button - "First Time Setup" → "Editor Help" → "Playback Help"</li>
+                    <li>EDUCATIONAL: 📚 Step-by-step guidance through browser folder picker quirks and recursive search</li>
+                    <li>INTUITIVE: ✨ Auto-offered to new users with skip option - localStorage remembers completion</li>
+                    <li>INTEGRATED: 🔧 Built on existing help system - non-intrusive overlay with proper z-index</li>
+                    <li>ACCESSIBLE: 🎯 Line break support and readable text styling - designed for teacher demonstrations</li>
+                    <li>EXTENSIBLE: 🏗️ Framework ready for editor and playback tutorials - foundation for advanced help</li>
+                    <li>PRESERVED: ✅ All existing functionality, responsive design, and audio controls intact</li>
+                </ul>
+                <a href="versions/v0.8.2/v0.8.2.theatre-cue-player.html" class="btn">Try v0.8.2</a>
+            </div>
+
+            <div class="version-card beta">
+                <div class="version-number">Version 0.7.2</div>
+                <div class="version-status status-beta">PREVIOUS</div>
+                <p>Enhanced File Management & Advanced Cueing - Professional workflow improvements with intelligent navigation:</p>
+                <ul style="text-align: left; margin: 1rem 0;">
+                    <li>NEW: 📁 Folder Structure Display - subfolders shown in file picker (Act 1/Cue 1.mp3)</li>
+                    <li>ENHANCED: 🎯 Smart Cue Advancement - GO button now skips entire autofollow/autocontinue chains</li>
+                    <li>IMPROVED: 🔧 Jump to Cue functionality - now preserves auto-continue and auto-follow behavior</li>
+                    <li>REPLACED: ⚡ "Jump to First" with dedicated first cue button for better workflow</li>
+                    <li>OPTIMIZED: 🎛️ Pan UX improvements for better stereo control experience</li>
+                    <li>EXPANDED: 📏 File Picker window sizing - larger, responsive design (600px min, 80% max)</li>
+                    <li>PRESERVED: ✅ All existing functionality, responsive design, and audio controls intact</li>
+                </ul>
+                <a href="versions/v0.7.2/v0.7.2.theatre-cue-player.html" class="btn">Try v0.7.2</a>
             </div>
             
             <div class="version-card beta">
                 <div class="version-number">Version 0.7.0</div>
                 <div class="version-status status-beta">PREVIOUS</div>
-                <p>Chromebook Screen Optimization - No more horizontal scrolling on educational devices:</p>
+                <p>Responsive Design for Educational Devices - Optimized for Chromebooks and tablets:</p>
                 <ul style="text-align: left; margin: 1rem 0;">
                     <li>NEW: 📱 Chromebook Screen Optimization (1366x768) - eliminates horizontal scrolling</li>
-                    <li>IMPROVED: 🎯 Responsive breakpoint at 1366px with optimized table sizing (650px min-width)</li>
+                    <li>IMPROVED: 🎯 Responsive breakpoint with optimized table sizing for educational devices</li>
                     <li>IMPROVED: 📐 Help system layout - icons no longer push sidebar off-screen</li>
-                    <li>OPTIMIZED: ⚡ Font size (0.78rem) and padding (0.22rem) for Chromebook displays</li>
-                    <li>OPTIMIZED: 📏 Sidebar width (220px) for better space utilization on mid-range screens</li>
-                    <li>ENHANCED: 🖥️ Better support for educational devices and public school hardware</li>
+                    <li>OPTIMIZED: ⚡ Font size and padding specifically tuned for Chromebook displays</li>
+                    <li>OPTIMIZED: 📏 Sidebar width optimized for better space utilization on mid-range screens</li>
+                    <li>ENHANCED: 🖥️ Better support for public school hardware and educational environments</li>
                     <li>PRESERVED: ✅ All existing functionality, breakpoints, and responsive design intact</li>
                 </ul>
                 <a href="versions/v0.7.0/v0.7.0.theatre-cue-player.html" class="btn">Try v0.7.0</a>
@@ -355,7 +338,7 @@
                 <div class="version-status status-beta">PREVIOUS</div>
                 <p>Interactive Waveform Editor - Professional audio editing with major stability fixes:</p>
                 <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: ~ Interactive Waveform Editor (visual audio editing)</li>
+                    <li>NEW: 🌊 Interactive Waveform Editor (visual audio editing)</li>
                     <li>🔍 Playhead-centered zoom for professional UX</li>
                     <li>🎵 Real-time preview with perfect fade-in/fade-out timing</li>
                     <li>📊 Non-destructive editing (cancel/apply workflow)</li>
@@ -487,18 +470,18 @@
                 <div class="version-status status-beta">PREVIOUS</div>
                 <p>One-click project setup and enhanced workflow:</p>
                 <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: Load Show Folder function (one-click project loading)</li>
-                    <li>📁 Automatically finds both audio files and cue files</li>
-                    <li>⚡ Streamlined setup process for complete shows</li>
-                    <li>🎯 Perfect for educational environments</li>
-                    <li>🔧 Enhanced file management workflows</li>
+                    <li>NEW: Load Show Folder (one-click setup)</li>
+                    <li>🎯 Auto-detects audio files AND cue file</li>
+                    <li>⚡ Instant launch into ready-to-run state</li>
+                    <li>📁 Perfect for distributed show packages</li>
+                    <li>🎓 Simplified setup for educational environments</li>
                 </ul>
                 <a href="versions/v0.4.4/v0.4.4.theatre-cue-player.html" class="btn">Try v0.4.4</a>
             </div>
             
-            <div class="version-card beta">
+            <div class="version-card current">
                 <div class="version-number">Version 0.4.3</div>
-                <div class="version-status status-beta">PREVIOUS</div>
+                <div class="version-status status-stable">STABLE</div>
                 <p>Critical trim behavior fixes:</p>
                 <ul style="text-align: left; margin: 1rem 0;">
                     <li>Fixed: Trim End behavior (0.0s = no trim)</li>
@@ -508,32 +491,24 @@
                 </ul>
                 <a href="versions/v0.4.3/v0.4.3.theatre-cue-player.html" class="btn">Try v0.4.3</a>
             </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.4.1</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>What v0.4.1 actually delivered:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>Fix multiple instance bug (critical)</li>
-                    <li>Next cue label display (easy win)</li>
-                    <li>Reduce table padding (easy win)</li>
-                    <li>Remove in-cue fade controls (align with QLab)</li>
-                </ul>
-                <a href="versions/v0.4.1/v0.4.1.theatre-cue-player.html" class="btn">Try v0.4.1</a>
-            </div>
-            
-            <div class="version-card current">
-                <div class="version-number">Version 0.3.29</div>
-                <div class="version-status status-stable">STABLE</div>
-                <p>Current stable release with core features:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>Audio & fade cues</li>
-                    <li>Separated loading system</li>
-                    <li>Help system</li>
-                    <li>Professional controls</li>
-                </ul>
-                <a href="versions/v0.3.29/v0.3.29.theatre-cue-player.html" class="btn btn-primary">Use v0.3.29 Stable</a>
-            </div>
+        </div>
+        
+        <div class="roadmap">
+            <h3>🗺️ Roadmap</h3>
+            <ul>
+                <li>Advanced tutorial flows (Editor Help, Playback Help)</li>
+                <li>Enhanced accessibility features</li>
+                <li>Undo system</li>
+            </ul>
+        </div>
+        
+        <div class="credits">
+            <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
+            Blinn College-Brenham Campus</p>
+            <p><strong>Coded by:</strong> Claude.AI</p>
+            <p style="margin-top: 1rem; font-style: italic;">
+                <strong>License:</strong> MIT License – Free to use, modify, and share<br>
+            </p>
         </div>
     </div>
 </body>
