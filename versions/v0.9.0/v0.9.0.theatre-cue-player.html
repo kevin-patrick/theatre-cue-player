@@ -4,6 +4,23 @@ Theatre Cue Player
 Developed by Kevin Patrick, Blinn College–Brenham Campus
 With code assistance from OpenAI's ChatGPT and Anthropic's Claude
 
+Version 0.9.0 – Last Updated July 26, 2025
+
+TECHNICAL IMPLEMENTATION:
+- Added comprehensive UNDO/REDO system for edit operations with 10-level history
+- Added Ctrl+Z keyboard shortcut for single-step undo functionality
+- Added Ctrl+Y keyboard shortcut for single-step redo functionality
+- Integrated undo state saving into all edit operations: add cue, delete cue, edit fields, move cues, renumber cues, assign targets, edit pan
+- Undo/redo stacks automatically clear when loading new projects or creating new projects
+- Redo stack clears when new edit operations are performed (standard undo/redo behavior)
+- Undo/redo system captures full project snapshots with timestamps and operation descriptions
+- Added professional keyboard shortcuts: A key for Add Audio Cue, F key for Add Fade Cue (Edit Mode only)
+- Implemented smart cue insertion after selected cue instead of always appending to end
+- Added intelligent cue numbering with decimal fallback (2→3, then 2.1, 2.2, etc.) like QLab
+- Enhanced cue table with visual selection highlighting (yellow border) for insertion point
+- Improved fade cue targeting to select nearest audio cue based on insertion position
+- Removed UNDO/REDO buttons from header for cleaner professional interface (keyboard shortcuts preferred)
+
 Version 0.8.5 – Last Updated July 25, 2025
 
 TECHNICAL IMPLEMENTATION:
@@ -219,6 +236,16 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             .cue-table tr.current-cue td {
                 background: rgba(0, 123, 255, 0.3);
                 border-color: #007bff;
+            }
+
+            .cue-table tr.selected-cue {
+                background: rgba(255, 193, 7, 0.3) !important;
+                border: 2px solid #ffc107;
+            }
+
+            .cue-table tr.selected-cue td {
+                background: rgba(255, 193, 7, 0.2);
+                border-color: #ffc107;
             }
 
             .cue-table tr.playing {
@@ -1320,6 +1347,10 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">F1:</strong> Help<span class="help-icon inline" onclick="showHelp('F1 - Help', 'Toggle help mode on/off - shows help icons and information', event)">?</span></div>
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">E:</strong> Edit Mode<span class="help-icon inline" onclick="showHelp('E - Edit Mode', 'Toggle edit mode to modify cues, add new ones, or assign hotkeys', event)">?</span></div>
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Ctrl+S:</strong> Save<span class="help-icon inline" onclick="showHelp('Ctrl+S - Save', 'Quick save your cue file (only works in Edit Mode)', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Ctrl+Z:</strong> Undo<span class="help-icon inline" onclick="showHelp('Ctrl+Z - Undo', 'Undo the last edit operation (only works in Edit Mode). Up to 10 levels of undo history.', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Ctrl+Y:</strong> Redo<span class="help-icon inline" onclick="showHelp('Ctrl+Y - Redo', 'Redo the last undone operation (only works in Edit Mode). Redo history is cleared when new edits are made.', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">A:</strong> Add Audio Cue<span class="help-icon inline" onclick="showHelp('A - Add Audio Cue', 'Quick add audio cue (only works in Edit Mode). Inserts after selected cue with smart numbering.', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">F:</strong> Add Fade Cue<span class="help-icon inline" onclick="showHelp('F - Add Fade Cue', 'Quick add fade cue (only works in Edit Mode). Inserts after selected cue with smart target assignment.', event)">?</span></div>
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Shift+F2-F10:</strong> Assign Hotkey<span class="help-icon inline" onclick="showHelp('Shift+F Keys - Assign Hotkeys', 'In Edit Mode: Assign F2-F10 keys to specific cues for instant triggering. Great for sound effects!', event)">?</span></div>
                     </div>
                     <div id="hotkeyAssignments" style="margin-top: 0.8rem; font-size: 0.75rem; color: #aaa;">
@@ -1517,6 +1548,12 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         let hotkeyAssignments = new Map(); // Map of F-key codes to cue numbers
         let progressTimer = null;
         let currentShowName = 'Untitled Show';
+        // ===== UNDO/REDO SYSTEM VARIABLES =====
+        let undoStack = []; // Array of project state snapshots
+        let redoStack = []; // Array of undone states for redo functionality
+        const MAX_UNDO_LEVELS = 10;
+        // ===== END UNDO/REDO SYSTEM VARIABLES =====
+        let selectedCueIndex = -1; // Index of currently selected cue for insertion (-1 = none selected)
         let currentFileName = 'No file loaded';
         let masterAnalyser = null;
         let masterGainNode = null;
@@ -1991,6 +2028,42 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                             }
                         }
                         break;
+                        
+                    case 'z':
+                    case 'Z': // Undo
+                        if (!helpMode && ctrlKey && editMode) {
+                            event.preventDefault();
+                            performUndo();
+                            showTemporaryFeedback('UNDO ↶');
+                        }
+                        break;
+                        
+                    case 'y':
+                    case 'Y': // Redo
+                        if (!helpMode && ctrlKey && editMode) {
+                            event.preventDefault();
+                            performRedo();
+                            showTemporaryFeedback('REDO ↷');
+                        }
+                        break;
+                        
+                    case 'a':
+                    case 'A': // Add Audio Cue
+                        if (!helpMode && !ctrlKey && editMode) {
+                            event.preventDefault();
+                            addAudioCue();
+                            showTemporaryFeedback('Audio Cue Added 🎵');
+                        }
+                        break;
+                        
+                    case 'f':
+                    case 'F': // Add Fade Cue
+                        if (!helpMode && !ctrlKey && editMode) {
+                            event.preventDefault();
+                            addFadeCue();
+                            showTemporaryFeedback('Fade Cue Added 🌊');
+                        }
+                        break;
                 }
                 
                 // Handle F-key hotkeys (F2-F10)
@@ -2432,6 +2505,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             currentCueIndex = 0;
             playingCues.clear();
             hotkeyAssignments.clear(); // Clear hotkey assignments for new project
+            undoStack = []; // Clear undo stack for new project
+            redoStack = []; // Clear redo stack for new project
+            selectedCueIndex = -1; // Reset cue selection for new project
             if (typeof finishedCues !== 'undefined') finishedCues.clear();
             
             // Reset show info
@@ -2575,18 +2651,183 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             if (project.cues && project.cues.length > 0) {
                 updateUI();
             }
+            
+            // Update undo button state
+            updateUndoRedoButtonStates();
         }
 
-        function addAudioCue() {
-            // Find highest existing cue number and add 1
-            let maxCueNumber = 0;
-            for (const cue of project.cues) {
-                const cueNum = parseFloat(cue.cueNumber);
-                if (!isNaN(cueNum) && cueNum > maxCueNumber) {
-                    maxCueNumber = cueNum;
-                }
+        // ===== UNDO SYSTEM FUNCTIONS =====
+        function saveUndoState(description = 'Edit operation') {
+            if (!editMode) return; // Only save undo states in edit mode
+            
+            // Create a deep copy of the current project state
+            const stateSnapshot = {
+                project: JSON.parse(JSON.stringify(project)),
+                currentCueIndex: currentCueIndex,
+                description: description,
+                timestamp: Date.now()
+            };
+            
+            // Add to undo stack
+            undoStack.push(stateSnapshot);
+            
+            // Clear redo stack when new edit operation happens
+            redoStack = [];
+            
+            // Limit stack size
+            if (undoStack.length > MAX_UNDO_LEVELS) {
+                undoStack.shift(); // Remove oldest state
             }
-            const newCueNumber = (Math.floor(maxCueNumber) + 1).toString();
+            
+            updateUndoRedoButtonStates();
+            console.log('Undo state saved:', description, 'Stack size:', undoStack.length);
+        }
+
+        function performUndo() {
+            if (!editMode || undoStack.length === 0) {
+                console.log('Cannot undo: not in edit mode or no undo states available');
+                return;
+            }
+            
+            // Save current state to redo stack before undoing
+            const currentState = {
+                project: JSON.parse(JSON.stringify(project)),
+                currentCueIndex: currentCueIndex,
+                description: 'Redo point',
+                timestamp: Date.now()
+            };
+            redoStack.push(currentState);
+            
+            // Limit redo stack size
+            if (redoStack.length > MAX_UNDO_LEVELS) {
+                redoStack.shift();
+            }
+            
+            const previousState = undoStack.pop();
+            
+            // Restore the previous state
+            project = previousState.project;
+            currentCueIndex = previousState.currentCueIndex;
+            
+            // Update UI to reflect the restored state
+            updateUI();
+            updateUndoRedoButtonStates();
+            
+            console.log('Undo performed:', previousState.description, 'Remaining undo states:', undoStack.length);
+        }
+
+        function performRedo() {
+            if (!editMode || redoStack.length === 0) {
+                console.log('Cannot redo: not in edit mode or no redo states available');
+                return;
+            }
+            
+            // Save current state to undo stack before redoing
+            const currentState = {
+                project: JSON.parse(JSON.stringify(project)),
+                currentCueIndex: currentCueIndex,
+                description: 'Undo point',
+                timestamp: Date.now()
+            };
+            undoStack.push(currentState);
+            
+            // Limit undo stack size
+            if (undoStack.length > MAX_UNDO_LEVELS) {
+                undoStack.shift();
+            }
+            
+            const redoState = redoStack.pop();
+            
+            // Restore the redo state
+            project = redoState.project;
+            currentCueIndex = redoState.currentCueIndex;
+            
+            // Update UI to reflect the restored state
+            updateUI();
+            updateUndoRedoButtonStates();
+            
+            console.log('Redo performed:', redoState.description, 'Remaining redo states:', redoStack.length);
+        }
+
+        function updateUndoRedoButtonStates() {
+            const undoButton = document.getElementById('undoButton');
+            const redoButton = document.getElementById('redoButton');
+            
+            if (undoButton) {
+                const canUndo = editMode && undoStack.length > 0;
+                undoButton.disabled = !canUndo;
+                undoButton.style.opacity = canUndo ? '1' : '0.5';
+            }
+            
+            if (redoButton) {
+                const canRedo = editMode && redoStack.length > 0;
+                redoButton.disabled = !canRedo;
+                redoButton.style.opacity = canRedo ? '1' : '0.5';
+            }
+        }
+        // ===== END UNDO SYSTEM FUNCTIONS =====
+
+        // ===== SMART CUE NUMBERING FUNCTIONS =====
+        function getSmartCueNumber(insertAfterIndex) {
+            // If no cues exist, start with 1
+            if (project.cues.length === 0) {
+                return '1';
+            }
+            
+            // If inserting at the end (no selection or selected last cue)
+            if (insertAfterIndex === -1 || insertAfterIndex >= project.cues.length - 1) {
+                // Find highest existing cue number and add 1
+                let maxCueNumber = 0;
+                for (const cue of project.cues) {
+                    const cueNum = parseFloat(cue.cueNumber);
+                    if (!isNaN(cueNum) && cueNum > maxCueNumber) {
+                        maxCueNumber = cueNum;
+                    }
+                }
+                return (Math.floor(maxCueNumber) + 1).toString();
+            }
+            
+            // Get the cue we're inserting after
+            const afterCue = project.cues[insertAfterIndex];
+            const afterNumber = parseFloat(afterCue.cueNumber);
+            
+            // If it's not a valid number, fall back to end insertion
+            if (isNaN(afterNumber)) {
+                return getSmartCueNumber(-1);
+            }
+            
+            // Try next integer first
+            const nextInteger = Math.floor(afterNumber) + 1;
+            if (!cueNumberExists(nextInteger.toString())) {
+                return nextInteger.toString();
+            }
+            
+            // Try decimal increments (2.1, 2.2, 2.3, etc.)
+            let decimalIncrement = 1;
+            while (decimalIncrement < 100) { // Prevent infinite loop
+                const newNumber = afterNumber + (decimalIncrement / 10);
+                const newNumberStr = newNumber.toFixed(1);
+                if (!cueNumberExists(newNumberStr)) {
+                    return newNumberStr;
+                }
+                decimalIncrement++;
+            }
+            
+            // Fallback: add to end
+            return getSmartCueNumber(-1);
+        }
+        
+        function cueNumberExists(cueNumber) {
+            return project.cues.some(cue => cue.cueNumber === cueNumber);
+        }
+        // ===== END SMART CUE NUMBERING FUNCTIONS =====
+
+        function addAudioCue() {
+            // Save undo state before making changes
+            saveUndoState('Add audio cue');
+            
+            // Get smart cue number based on selection
+            const newCueNumber = getSmartCueNumber(selectedCueIndex);
             const newCue = {
                 cueNumber: newCueNumber,
                 label: 'New Audio Cue',
@@ -2604,7 +2845,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 status: 'waiting'
             };
             
-            project.cues.push(newCue);
+            // Insert after selected cue or at end
+            const insertIndex = selectedCueIndex === -1 ? project.cues.length : selectedCueIndex + 1;
+            project.cues.splice(insertIndex, 0, newCue);
             
             // Validate the new cue
             validateAllCues();
@@ -2612,22 +2855,40 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         }
 
         function addFadeCue() {
-            // Find highest existing cue number and add 1
-            let maxCueNumber = 0;
-            for (const cue of project.cues) {
-                const cueNum = parseFloat(cue.cueNumber);
-                if (!isNaN(cueNum) && cueNum > maxCueNumber) {
-                    maxCueNumber = cueNum;
-                }
-            }
-            const newCueNumber = (Math.floor(maxCueNumber) + 1).toString();
+            // Save undo state before making changes
+            saveUndoState('Add fade cue');
             
-            // Find the previous audio cue to target by default
+            // Get smart cue number based on selection
+            const newCueNumber = getSmartCueNumber(selectedCueIndex);
+            
+            // Find the best audio cue to target by default
             let defaultTarget = '';
-            for (let i = project.cues.length - 1; i >= 0; i--) {
-                if (project.cues[i].type === 'audio') {
-                    defaultTarget = project.cues[i].cueNumber;
-                    break;
+            
+            // If we have a selected cue, look for audio cues near it
+            if (selectedCueIndex !== -1 && selectedCueIndex < project.cues.length) {
+                // Look backwards from selected cue for nearest audio cue
+                for (let i = selectedCueIndex; i >= 0; i--) {
+                    if (project.cues[i].type === 'audio') {
+                        defaultTarget = project.cues[i].cueNumber;
+                        break;
+                    }
+                }
+                // If no audio cue found before selection, look forward
+                if (!defaultTarget) {
+                    for (let i = selectedCueIndex + 1; i < project.cues.length; i++) {
+                        if (project.cues[i].type === 'audio') {
+                            defaultTarget = project.cues[i].cueNumber;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // No selection - find the most recent audio cue
+                for (let i = project.cues.length - 1; i >= 0; i--) {
+                    if (project.cues[i].type === 'audio') {
+                        defaultTarget = project.cues[i].cueNumber;
+                        break;
+                    }
                 }
             }
             
@@ -2648,7 +2909,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 status: 'ready'
             };
             
-            project.cues.push(newCue);
+            // Insert after selected cue or at end
+            const insertIndex = selectedCueIndex === -1 ? project.cues.length : selectedCueIndex + 1;
+            project.cues.splice(insertIndex, 0, newCue);
             
             // Validate the new cue
             validateAllCues();
@@ -2710,6 +2973,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 return;
             }
             
+            // Save undo state before making changes
+            saveUndoState('Move cue up');
+            
             // Swap with previous cue
             const temp = project.cues[index];
             project.cues[index] = project.cues[index - 1];
@@ -2734,6 +3000,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 console.log('Cannot move cue down - invalid index');
                 return;
             }
+            
+            // Save undo state before making changes
+            saveUndoState('Move cue down');
             
             // Swap with next cue
             const temp = project.cues[index];
@@ -2797,6 +3066,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         if (playingCues.has(cueNumber)) {
                             stopSingleCue(cueNumber);
                         }
+                        
+                        // Save undo state before making changes
+                        saveUndoState(`Delete cue ${cueNumber}`);
                         
                         // Remove from project
                         const index = project.cues.findIndex(c => c.cueNumber === cueNumber);
@@ -2973,6 +3245,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         }
 
         function assignTargetToCue(cueNumber, targetCueNumber) {
+            // Save undo state before making changes
+            saveUndoState(`Assign target ${targetCueNumber} to cue ${cueNumber}`);
+            
             const cue = project.cues.find(c => c.cueNumber === cueNumber);
             if (!cue) {
                 console.error('Cue not found:', cueNumber);
@@ -2990,6 +3265,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         function editField(field, cueNumber) {
             const cue = project.cues.find(c => c.cueNumber === cueNumber);
             if (!cue) return;
+            
+            // Save undo state before making changes
+            saveUndoState(`Edit ${field} for cue ${cueNumber}`);
 
             let currentValue = cue[field];
             let newValue;
@@ -3271,6 +3549,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         }
 
         function editPan(cueNumber) {
+            // Save undo state before making changes
+            saveUndoState(`Edit pan for cue ${cueNumber}`);
+            
             const cue = project.cues.find(c => c.cueNumber === cueNumber);
             if (!cue) return;
 
@@ -3385,6 +3666,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 // Build CSS classes for status and auto-tagging
                 let rowClasses = [];
                 if (isCurrentCue) rowClasses.push('current-cue');
+                if (i === selectedCueIndex) rowClasses.push('selected-cue');
                 if (isPlaying) rowClasses.push('playing');
                 if (isFading) rowClasses.push('fading');
                 if (isLooping) rowClasses.push('looping');
@@ -3420,7 +3702,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 }
 
                 html += `
-                <tr class="${rowClasses.join(' ')}">
+                <tr class="${rowClasses.join(' ')}" onclick="selectCueForInsertion(${i})" style="cursor: pointer;">
                     <td onclick="${editMode ? `editField('cueNumber', '${cue.cueNumber}')` : ''}">${cue.cueNumber}</td>
                     <td onclick="${editMode ? `editField('label', '${cue.cueNumber}')` : ''}">${displayLabel}</td>
                     <td class="${targetCellClass}" onclick="${editMode ? `selectTarget('${cue.cueNumber}')` : ''}">${targetCellContent}</td>
@@ -3467,6 +3749,12 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             updateProjectStatus();
             updateNextCueDisplay();
             updateTutorialButton(); 
+        }
+
+        function selectCueForInsertion(index) {
+            selectedCueIndex = index;
+            updateUI(); // Refresh to show selection highlighting
+            console.log('Selected cue index for insertion:', index);
         }
 
         function selectFile(cueNumber) {
@@ -4485,6 +4773,11 @@ projectFiles.set(filePath, file);
                 project = loadedProject;
                 currentCueIndex = 0;
                 
+                // Clear undo/redo stacks when loading new project
+                undoStack = [];
+                redoStack = [];
+                selectedCueIndex = -1; // Reset cue selection
+                
                 // Reset file input to allow reloading same file
                 event.target.value = '';
                 
@@ -4633,6 +4926,11 @@ projectFiles.set(filePath, file);
                     project = loadedProject;
                     currentCueIndex = 0;
                     jsonLoadSuccess = true;
+                    
+                    // Clear undo/redo stacks when loading new project
+                    undoStack = [];
+                    redoStack = [];
+                    selectedCueIndex = -1; // Reset cue selection
                     
                     // Restore hotkey assignments if they exist
                     if (loadedProject.hotkeyAssignments) {
@@ -4977,8 +5275,11 @@ projectFiles.set(filePath, file);
                 return;
             }
             
-            const confirmed = confirm(`This will renumber ${changesCount} cue(s). This action cannot be undone. Continue?`);
+            const confirmed = confirm(`This will renumber ${changesCount} cue(s). Continue?`);
             if (!confirmed) return;
+            
+            // Save undo state before making changes
+            saveUndoState(`Renumber ${changesCount} cues`);
             
             // Apply renumbering
             let actualChanges = 0;
