@@ -3727,6 +3727,23 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             updateUI();
         }
 
+        function handleCheckboxChange(cueNumber, property, checked) {
+            console.log(`Changing ${property} for cue ${cueNumber} to ${checked}`);
+            
+            const cue = project.cues.find(c => c.cueNumber === cueNumber);
+            if (cue) {
+                cue[property] = checked;
+                console.log(`Successfully set ${property} to ${checked} for cue ${cueNumber}`);
+                
+                // Delay UI update to ensure checkbox state is processed
+                setTimeout(() => {
+                    updateUI();
+                }, 10);
+            } else {
+                console.error(`Could not find cue ${cueNumber}`);
+            }
+}
+
         function updateUI() {
             console.log('updateUI called');
             
@@ -3811,11 +3828,11 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 }
 
                 html += `
-                <tr class="${rowClasses.join(' ')}" onclick="selectCueForInsertion(${i})" style="cursor: pointer;">
+                <tr class="${rowClasses.join(' ')}" onclick="if(event.target.type !== 'checkbox' && event.target.tagName !== 'BUTTON') selectCueForInsertion(${i})" style="cursor: pointer;">
                     <td onclick="${editMode ? `editField('cueNumber', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.cueNumber}</td>
                     <td onclick="${editMode ? `editField('label', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${displayLabel}</td>
                     <td class="${targetCellClass}" onclick="${editMode ? `selectTarget('${cue.cueNumber}'); event.stopPropagation();` : ''}">${targetCellContent}</td>
-                    <td><input type="checkbox" ${cue.autoContinue ? 'checked' : ''} ${editMode ? `onchange="project.cues.find(c => c.cueNumber === '${cue.cueNumber}').autoContinue = this.checked; updateUI();"` : 'disabled'}></td>
+                    <td><input type="checkbox" ${cue.autoContinue ? 'checked' : ''} ${editMode ? `onchange="event.stopPropagation(); handleCheckboxChange('${cue.cueNumber}', 'autoContinue', this.checked);"` : 'disabled'}></td>
                     <td onclick="${editMode ? `editField('delay', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${formatSecondsFromMs(cue.delay)}</td>
                     <td onclick="${editMode && cue.type === 'audio' ? `editField('startTime', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.type === 'audio' ? formatTime(cue.startTime) : '-'}</td>
                     <td onclick="${editMode && cue.type === 'audio' ? `editField('fadeInTime', '${cue.cueNumber}')` : ''}">${cue.type === 'audio' ? formatSecondsFromMs(cue.fadeInTime) : '-'}</td>
@@ -3840,7 +3857,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         if (loopCount >= 999) return '∞x';
                         return loopCount + 'x';
                     })()}</td>
-                    <td><input type="checkbox" ${cue.autoFollow ? 'checked' : ''} ${editMode ? `onchange="project.cues.find(c => c.cueNumber === '${cue.cueNumber}').autoFollow = this.checked; updateUI();"` : 'disabled'}></td>
+                    <td><input type="checkbox" ${cue.autoFollow ? 'checked' : ''} ${editMode ? `onchange="event.stopPropagation(); handleCheckboxChange('${cue.cueNumber}', 'autoFollow', this.checked);"` : 'disabled'}></td>
                     <td>
                         <button onclick="playCue('${cue.cueNumber}')" class="btn btn-success" style="padding: 0.2rem 0.4rem; margin-right: 0.2rem;">▶</button>
                         <button onclick="fadeCue('${cue.cueNumber}')" class="btn btn-warning" style="padding: 0.2rem 0.4rem; margin-right: 0.2rem;"${cue.type === 'fade' ? ' disabled' : ''}>⧵</button>
