@@ -1569,7 +1569,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         // ===== UNDO/REDO SYSTEM VARIABLES =====
         let undoStack = []; // Array of project state snapshots
         let redoStack = []; // Array of undone states for redo functionality
-        const MAX_UNDO_LEVELS = 10;
+        const MAX_UNDO_LEVELS = 5;
         // ===== END UNDO/REDO SYSTEM VARIABLES =====
         let selectedCueIndex = -1; // Index of currently selected cue for insertion (-1 = none selected)
         let currentFileName = 'No file loaded';
