@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="🎭" type="image/svg+xml">
     <title>Theatre Cue Player</title>
     <style>
         * {
@@ -209,7 +210,7 @@
         <p class="tagline">Professional audio cue management for educational theatre</p>
         
         <div style="margin-bottom: 2rem;">
-            <a href="Tutorial.Theatre-Cue-Player.zip" class="btn btn-primary">📚 Download Tutorial Package</a>
+            <a href="Theatre-Cue-Player-Tutorial_v0.9.0.zip" class="btn btn-primary">📚 Download Tutorial Package</a>
             <a href="tcp_v0_8_1_manual.pdf" class="btn" target="_blank">📖 Download Manual (PDF)</a>
             <a href="tcp_v0_8_1_manual.md" class="btn" target="_blank">📝 View Manual (Markdown)</a>
             <a href="https://forms.gle/JNS7qw5vzpr4eX5BA" class="btn" target="_blank">🧪 Join Beta Testing</a>
@@ -218,8 +219,26 @@
         
         <div class="version-grid">
             <div class="version-card latest">
-                <div class="version-number">Version 0.9.0</div>
+                <div class="version-number">Version 0.9.1</div>
                 <div class="version-status status-latest">LATEST</div>
+                <p>Sound Effect Layering & Enhanced Workflow - Multiple audio instances with professional control:</p>
+                <ul style="text-align: left; margin: 1rem 0;">
+                    <li>NEW: 🔊 Multiple Audio Instance Playback - sound effects can now overlap (airhorns, applause, stingers)</li>
+                    <li>SMART: 🎛️ Unified Control - Stop and Fade buttons affect ALL instances of a cue while maintaining professional workflow</li>
+                    <li>ENHANCED: 🎯 Smart Instance Management - tracks multiple playbacks internally while displaying clean cue numbers</li>
+                    <li>FIXED: 🔢 Auto Cue Numbering - proper sequential numbering for new cues</li>
+                    <li>FIXED: 🔄 Loop Completion Cleanup - eliminated infinite silent looping after finite loops complete</li>
+                    <li>FIXED: ⚡ Auto Follow Execution - automation now works correctly after loop completion</li>
+                    <li>TECHNICAL: 🏗️ Enhanced playingCues Map with unique instance identifiers (cueNumber_timestamp)</li>
+                    <li>TECHNICAL: 🔧 Updated stop/fade functions to handle multiple instances while preserving unified control</li>
+                    <li>PRESERVED: ✅ All existing functionality - Stop All, Fade All, keyboard shortcuts, and responsive design intact</li>
+                </ul>
+                <a href="v0.9.1.theatre-cue-player.html" class="btn btn-latest">Try v0.9.1 Latest</a>
+            </div>
+
+            <div class="version-card beta">
+                <div class="version-number">Version 0.9.0</div>
+                <div class="version-status status-latest">PREVIOUS</div>
                 <p>Professional Workflow Enhancement - QLab-style editing with smart cue management and comprehensive undo/redo:</p>
                 <ul style="text-align: left; margin: 1rem 0;">
                     <li>NEW: ↶↷ Comprehensive UNDO/REDO system for edit operations with 10-level history</li>
@@ -233,7 +252,7 @@
                     <li>INTEGRATED: 🔗 Undo state saving into all edit operations: add cue, delete cue, edit fields, move cues, renumber cues, assign targets, edit pan</li>
                     <li>PRESERVED: ✅ All existing functionality, tutorial system, and responsive design intact</li>
                 </ul>
-                <a href="v0.9.0.theatre-cue-player.html" class="btn btn-latest">Try v0.9.0 Latest</a>
+                <a href="v0.9.0.theatre-cue-player.html" class="btn btn-latest">Try v0.9.0</a>
             </div>
 
             <div class="version-card beta">
