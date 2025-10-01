@@ -696,31 +696,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 }
 
 /* RENUMBER MODAL STYLES */
-/* Force scrollbars to always be visible */
-.modal-body::-webkit-scrollbar,
-.preview-table::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-}
-
-.modal-body::-webkit-scrollbar-track,
-.preview-table::-webkit-scrollbar-track {
-    background: #1a1a1a;
-    border-radius: 6px;
-}
-
-.modal-body::-webkit-scrollbar-thumb,
-.preview-table::-webkit-scrollbar-thumb {
-    background: #007bff;
-    border-radius: 6px;
-    border: 2px solid #1a1a1a;
-}
-
-.modal-body::-webkit-scrollbar-thumb:hover,
-.preview-table::-webkit-scrollbar-thumb:hover {
-    background: #0056b3;
-}
-
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -732,8 +707,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
 }
 
 .modal-content {
@@ -746,25 +719,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
     overflow-y: auto;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     border: 2px solid #007bff;
-    display: flex; 
-    flex-direction: column; 
-    margin: auto; 
-    resize:both;
-    overflow: hidden;
-    min-width: 400px;
-    min-height: 300px;
-}
-
-/* Add resize handle indicator */
-.modal-content::after {
-    content: '⋰';
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    color: #666;
-    font-size: 16px;
-    pointer-events: none;
-    line-height: 1;
 }
 
 .modal-header {
@@ -804,11 +758,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
 .modal-body {
     padding: 1.5rem;
-    overflow-y: auto; 
-    flex: 1; 
-    -webkit-overflow-scrolling: touch;
-    max-height: none;
-    height: 100%;
 }
 
 .modal-footer {
@@ -874,19 +823,15 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 }
 
 .preview-table {
-    max-height: 400px;
+    max-height: 300px;
     overflow-y: auto;
-    overflow-x: auto;
     border: 1px solid #555;
     border-radius: 4px;
-    display: block;
-    -webkit-overlfow-scrolling: touch;
 }
 
 .preview-table table {
     width: 100%;
     border-collapse: collapse;
-    display: table; 
 }
 
 .preview-table th, .preview-table td {
@@ -973,8 +918,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         min-width: auto;
     }
 }
-
-
 
         /* Waveform Editor Styles */
         .waveform-handle {
@@ -1559,7 +1502,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Ctrl+Y:</strong> Redo<span class="help-icon inline" onclick="showHelp('Ctrl+Y - Redo', 'Redo the last undone operation (only works in Edit Mode). Redo history is cleared when new edits are made.', event)">?</span></div>
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">A:</strong> Add Audio Cue<span class="help-icon inline" onclick="showHelp('A - Add Audio Cue', 'Quick add audio cue (only works in Edit Mode). Inserts after selected cue with smart numbering.', event)">?</span></div>
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">F:</strong> Add Fade Cue<span class="help-icon inline" onclick="showHelp('F - Add Fade Cue', 'Quick add fade cue (only works in Edit Mode). Inserts after selected cue with smart target assignment.', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Ctrl+Shift+1-9:</strong> Assign Hotkey<span class="help-icon inline" onclick="showHelp('Ctrl+Shift+Number Keys - Assign Hotkeys', 'In Edit Mode: Assign 1-10 keys to specific cues for instant triggering. Great for sound effects!', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Shift+F2-F10:</strong> Assign Hotkey<span class="help-icon inline" onclick="showHelp('Shift+F Keys - Assign Hotkeys', 'In Edit Mode: Assign F2-F10 keys to specific cues for instant triggering. Great for sound effects!', event)">?</span></div>
                     </div>
                     <div id="hotkeyAssignments" style="margin-top: 0.8rem; font-size: 0.75rem; color: #aaa;">
                         <div onclick="showHotkeyAssignments()" style="cursor: pointer; color: #17a2b8; text-decoration: underline;">📋 View Hotkey Assignments</div>
@@ -2062,21 +2005,21 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 userAction: "click_next",
                 successTrigger: ""
             },
-{
-    stepNumber: 34,
-    title: "Add Hot Key",
-    uiTarget: "Next",
-    position: "centered",
-    overlayText: "Let's make that sound a hotkey. Sometimes you have a sound that needs to play based on stage action and not necessarily in order. Hot keys are great for that.\n\nHold down Ctrl+Shift and press 1.\n\nType in the cue number for the air horn to assign it, then press OK.\n\nPress next to continue.",
-    userAction: "click_next",
-    successTrigger: ""
-},
+            {
+                stepNumber: 34,
+                title: "Add Hot Key",
+                uiTarget: "Next",
+                position: "centered",
+                overlayText: "Let's make that sound a hotkey. Sometimes you have a sound that needs to play based on stage action and not necessarily in order. Hot keys are great for that.\n\nHold down the shift key and press F2.\n\nType in the cue number for the air horn to assign it, then press OK.\n\nPress next to continue.",
+                userAction: "click_next",
+                successTrigger: ""
+            },
             {
                 stepNumber: 35,
                 title: "Play the Hot Key",
                 uiTarget: "Next",
                 position: "centered",
-                overlayText: "You'll need to leave EDIT mode to play the hotkey sounds. Click on Exit Edit, then Press the 1 button on your keyboard. Are you hearing the air horn? Click Next when you're done being a DJ.",
+                overlayText: "Press the F2 button on your keyboard. Are you hearing the air horn? Click Next when you're done being a DJ.",
                 userAction: "click_next",
                 successTrigger: ""
             },
@@ -2396,45 +2339,27 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         // Keyboard Shortcuts System
         function setupKeyboardShortcuts() {
             document.addEventListener('keydown', function(event) {
-                // TEMPORARY DEBUG
-        if (event.ctrlKey && event.shiftKey && event.key >= '1' && event.key <= '9') {
-            console.log('=== HOTKEY DEBUG ===');
-            console.log('Event target:', event.target);
-            console.log('Edit mode:', editMode);
-            console.log('Help mode:', helpMode);
-            console.log('Tutorial active:', tutorialActive);
-            console.log('Active element:', document.activeElement);
-        }
-        // END DEBUG
-        // Don't interfere with typing in input fields
-        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
-            return;
-        }
-        
-        // Don't interfere with waveform editor controls
-        const waveformModal = document.getElementById('waveformModal');
-        if (waveformModal && waveformModal.style.display === 'block') {
-            return; // Let waveform keyboard handler take precedence
-        }
-        
-        // Get key details
-        const key = event.key;
-        const keyCode = event.code;
-        const ctrlKey = event.ctrlKey || event.metaKey;
-        const shiftKey = event.shiftKey;
-        
-        console.log('Key pressed:', key, 'Code:', keyCode, 'Ctrl:', ctrlKey, 'Shift:', shiftKey);
-        
-        // SPECIAL: Allow hotkey assignment to work even during tutorial
-        if (key >= '1' && key <= '9' && ctrlKey && shiftKey && editMode) {
-            event.preventDefault();
-            console.log('Assigning hotkey for key:', key);
-            assignHotkey(key);
-            return;
-        }
-        
-        // Handle different shortcuts
-        switch(key) {
+                // Don't interfere with typing in input fields
+                if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+                    return;
+                }
+                
+                // Don't interfere with waveform editor controls
+                const waveformModal = document.getElementById('waveformModal');
+                if (waveformModal && waveformModal.style.display === 'block') {
+                    return; // Let waveform keyboard handler take precedence
+                }
+                
+                // Get key details
+                const key = event.key;
+                const keyCode = event.code;
+                const ctrlKey = event.ctrlKey || event.metaKey;
+                const shiftKey = event.shiftKey;
+                
+                console.log('Key pressed:', key, 'Code:', keyCode, 'Ctrl:', ctrlKey, 'Shift:', shiftKey);
+                
+                // Handle different shortcuts
+                switch(key) {
                     case ' ': // Spacebar = GO
                         event.preventDefault();
                         if (!helpMode) {
@@ -2548,77 +2473,72 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         break;
                 }
                 
-                
-                // Handle number key hotkeys (1-9)  
-if (keyCode >= 'Digit1' && keyCode <= 'Digit9') {
-    const digitKey = keyCode.replace('Digit', ''); // Extract just the number
-    console.log('Number key pressed:', digitKey, 'Ctrl:', ctrlKey, 'Shift:', shiftKey, 'EditMode:', editMode, 'HelpMode:', helpMode);
-    if (!helpMode) {
-        if (ctrlKey && shiftKey && editMode) {
-            // Assign hotkey in Edit Mode
-            event.preventDefault();
-            console.log('Assigning hotkey for key:', digitKey);
-            assignHotkey(digitKey);
-        } else if (!ctrlKey && !shiftKey && !editMode) {
-            // Execute hotkey in Show Mode (bare key press)
-            event.preventDefault();
-            executeHotkey(digitKey);
-        }
-    }
-}
+                // Handle F-key hotkeys (F2-F10)
+                if (keyCode.startsWith('F') && keyCode !== 'F1' && keyCode !== 'F11' && keyCode !== 'F12') {
+                    event.preventDefault();
+                    if (!helpMode) {
+                        if (shiftKey && editMode) {
+                            // Assign hotkey
+                            assignHotkey(keyCode);
+                        } else {
+                            // Execute hotkey
+                            executeHotkey(keyCode);
+                        }
+                    }
+                }
             });
             
             console.log('Keyboard shortcuts initialized');
         }
 
         // Hotkey Management
-function assignHotkey(digitKey) {
-    if (project.cues.length === 0) {
-        alert('No cues available to assign hotkeys to.');
-        return;
-    }
-    
-    const cueNumber = prompt(`Assign key "${digitKey}" to which cue number?\n\nPress Ctrl+Shift+${digitKey} in Edit Mode to assign\nPress ${digitKey} in Show Mode to play\n\nAvailable cues: ${project.cues.map(c => c.cueNumber).join(', ')}\n\nLeave blank to remove assignment.`);
-    
-    if (cueNumber === null) return; // Cancelled
-    
-    if (cueNumber === '') {
-        // Remove assignment
-        hotkeyAssignments.delete(digitKey);
-        showTemporaryFeedback(`Key ${digitKey} unassigned`);
-        console.log(`Removed hotkey assignment for key ${digitKey}`);
-    } else {
-        // Verify cue exists
-        const cue = project.cues.find(c => c.cueNumber === cueNumber);
-        if (cue) {
-            hotkeyAssignments.set(digitKey, cueNumber);
-            showTemporaryFeedback(`Key ${digitKey} → Cue ${cueNumber}`);
-            console.log(`Assigned key ${digitKey} to cue ${cueNumber}`);
-        } else {
-            alert(`Cue "${cueNumber}" not found.`);
-        }
-    }
-}
-
-function executeHotkey(digitKey) {
-    const cueNumber = hotkeyAssignments.get(digitKey);
-    if (cueNumber) {
-        const cue = project.cues.find(c => c.cueNumber === cueNumber);
-        if (cue) {
-            if (cue.type === 'fade') {
-                executeFadeCue(cueNumber);
-            } else {
-                playCue(cueNumber);
+        function assignHotkey(keyCode) {
+            if (project.cues.length === 0) {
+                alert('No cues available to assign hotkeys to.');
+                return;
             }
-            showTemporaryFeedback(`Key ${digitKey} → Cue ${cueNumber} ▶️`);
-            console.log(`Hotkey ${digitKey} triggered cue ${cueNumber}`);
-        } else {
-            showTemporaryFeedback(`Key ${digitKey} cue not found`);
+            
+            const cueNumber = prompt(`Assign ${keyCode} to which cue number?\n\nAvailable cues: ${project.cues.map(c => c.cueNumber).join(', ')}\n\nLeave blank to remove assignment.`);
+            
+            if (cueNumber === null) return; // Cancelled
+            
+            if (cueNumber === '') {
+                // Remove assignment
+                hotkeyAssignments.delete(keyCode);
+                showTemporaryFeedback(`${keyCode} unassigned`);
+                console.log(`Removed hotkey assignment for ${keyCode}`);
+            } else {
+                // Verify cue exists
+                const cue = project.cues.find(c => c.cueNumber === cueNumber);
+                if (cue) {
+                    hotkeyAssignments.set(keyCode, cueNumber);
+                    showTemporaryFeedback(`${keyCode} → Cue ${cueNumber}`);
+                    console.log(`Assigned ${keyCode} to cue ${cueNumber}`);
+                } else {
+                    alert(`Cue "${cueNumber}" not found.`);
+                }
+            }
         }
-    } else {
-        showTemporaryFeedback(`Key ${digitKey} not assigned`);
-    }
-}
+
+        function executeHotkey(keyCode) {
+            const cueNumber = hotkeyAssignments.get(keyCode);
+            if (cueNumber) {
+                const cue = project.cues.find(c => c.cueNumber === cueNumber);
+                if (cue) {
+                    if (cue.type === 'fade') {
+                        executeFadeCue(cueNumber);
+                    } else {
+                        playCue(cueNumber);
+                    }
+                    showTemporaryFeedback(`${keyCode} → Cue ${cueNumber} ▶️`);
+                    console.log(`Hotkey ${keyCode} triggered cue ${cueNumber}`);
+                } else {
+                    showTemporaryFeedback(`${keyCode} cue not found`);
+                }
+            } else {
+                showTemporaryFeedback(`${keyCode} not assigned`);
+            }
+        }
 
         // Navigation helpers
         function navigateCue(direction) {
@@ -7063,7 +6983,7 @@ projectFiles.set(filePath, file);
         // Hotkey assignment display
         function showHotkeyAssignments() {
             if (hotkeyAssignments.size === 0) {
-                alert('No hotkeys assigned yet.\n\nTo assign:\n1. Enable Edit Mode\n2. Hold Crtl + Shift + press 1-9\n3. Enter cue number to assign');
+                alert('No hotkeys assigned yet.\n\nTo assign:\n1. Enable Edit Mode\n2. Hold Shift + press F2-F10\n3. Enter cue number to assign');
                 return;
             }
             
@@ -7465,6 +7385,15 @@ projectFiles.set(filePath, file);
                 }
             }
 
+            waitForKeyboardCombo(step) {
+                const handler = (event) => {
+                    if (event.shiftKey && event.key === 'F2') {
+                        document.removeEventListener('keydown', handler);
+                        this.advanceToNextStep();
+                    }
+                };
+                document.addEventListener('keydown', handler);
+            }
             
             waitForCondition(step) {
                 console.log('Setting up condition waiting for step:', step.stepNumber);
@@ -7968,7 +7897,7 @@ Edit Mode → Add/Edit Cues → Waveform Editor → Save Project → Show Mode
                             <td>Move between editable fields</td>
                         </tr>
                         <tr>
-                            <td><strong>1-9</strong></td>
+                            <td><strong>F2-F10</strong></td>
                             <td>Assignable Hot Keys</td>
                             <td>Show</td>
                             <td>Custom cue shortcuts (set in Edit)</td>

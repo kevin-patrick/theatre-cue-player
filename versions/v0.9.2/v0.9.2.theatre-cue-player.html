@@ -1,17 +1,26 @@
 <!--
-Theatre Cue Player Tutorial
+Theatre Cue Player
 
 Developed by Kevin Patrick, Blinn College–Brenham Campus
 With code assistance from OpenAI's ChatGPT and Anthropic's Claude
 
-Tutorial Version based on v0.9.0 – Created July 26, 2025
+Version 0.9.1 – Last Updated July 27, 2025
+NEW FEATURE: Multiple Audio Instance Playback
+ - Sound Effect Layering: Multiple instances of the same cue can now play simultaneously, enabling overlapping sound effects like airhorns, applause, or stingers
+ - Unified Control: Stop and Fade buttons affect ALL instances of a cue, maintaining professional control workflow
+ - Smart Instance Management: Individual cue instances are tracked internally while displaying clean cue numbers in the interface
+ - Full Compatibility: Stop All, Fade All, Auto Follow, and all existing functionality preserved
 
-TUTORIAL IMPLEMENTATION:
-- Created dedicated tutorial version based on Theatre Cue Player v0.9.0
-- Removed all existing tutorial system (buttons, functions, and UI elements)
-- Updated branding from "Theatre Cue Player" to "Theatre Cue Player Tutorial"
-- Maintained all core functionality while preparing for comprehensive tutorial content
-- This version serves as the foundation for future tutorial development
+TECHNICAL IMPLEMENTATION:
+ - Enhanced playingCues Map to use unique instance identifiers (cueNumber_timestamp) allowing multiple simultaneous playbacks
+ - Updated stop/fade functions to handle multiple instances per cue number while maintaining unified control
+ - Improved UI display logic to show base cue numbers instead of internal instance IDs
+ - Fixed loop completion cleanup to properly remove finished instances from memory
+BUG FIXES:
+ - Fixed auto cue numbering system for proper sequential numbering
+ - Resolved infinite silent looping issue when cues with finite loops completed
+ - Corrected Auto Follow execution after loop completion
+
 
 Version 0.9.0 – Last Updated July 26, 2025
 
@@ -75,7 +84,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Theatre Cue Player Tutorial</title>
+    <title>Theatre Cue Player</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎭%3C/text%3E%3C/svg%3E">
     <style>
         * {
@@ -604,6 +613,86 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             }
         }
 
+        /* ===== TUTORIAL SYSTEM STYLES (ADD AFTER EXISTING HELP STYLES) ===== */
+        .tutorial-window {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            margin-left: -250px !important;
+            margin-top: -150px !important;
+            background: white !important;
+            border: 2px solid #007bff !important;
+            border-radius: 8px !important;
+            padding: 20px !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+            z-index: 99999 !important;
+            width: 500px !important;
+            min-height: 200px !important;
+            display: none !important;
+            box-sizing: border-box !important;
+            color: #333 !important;
+        }
+
+        .tutorial-window.active {
+            display: block !important;
+        }
+
+        .tutorial-window h4 {
+            color: #333 !important;
+            margin-top: 0 !important;
+            margin-bottom: 15px !important;
+        }
+
+        .tutorial-window p {
+            color: #666 !important;
+            line-height: 1.5 !important;
+            margin-bottom: 15px !important;
+            white-space: pre-wrap !important; 
+        }
+
+        .tutorial-progress {
+            color: #666 !important;
+            font-size: 0.9em !important;
+            margin-bottom: 10px !important;
+}
+
+        .tutorial-backdrop {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: rgba(0,0,0,0.5) !important;
+            z-index: 99998 !important;
+            display: none !important;
+        }
+
+        .tutorial-backdrop.active {
+            display: block !important;
+        }
+
+        .tutorial-highlight {
+            box-shadow: 0 0 0 4px #007bff, 0 0 20px rgba(0,123,255,0.5) !important;
+            z-index: 999 !important;
+            position: relative !important;
+        }
+
+        .tutorial-buttons {
+            margin-top: 15px !important;
+            text-align: right !important;
+        }
+
+        .tutorial-buttons button {
+            margin-left: 10px !important;
+        }
+
+        .tutorial-progress {
+            color: #666 !important;
+            font-size: 0.9em !important;
+            margin-bottom: 10px !important;
+        }
 
         .first-time-setup-btn {
             margin-left: 10px;
@@ -696,31 +785,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 }
 
 /* RENUMBER MODAL STYLES */
-/* Force scrollbars to always be visible */
-.modal-body::-webkit-scrollbar,
-.preview-table::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-}
-
-.modal-body::-webkit-scrollbar-track,
-.preview-table::-webkit-scrollbar-track {
-    background: #1a1a1a;
-    border-radius: 6px;
-}
-
-.modal-body::-webkit-scrollbar-thumb,
-.preview-table::-webkit-scrollbar-thumb {
-    background: #007bff;
-    border-radius: 6px;
-    border: 2px solid #1a1a1a;
-}
-
-.modal-body::-webkit-scrollbar-thumb:hover,
-.preview-table::-webkit-scrollbar-thumb:hover {
-    background: #0056b3;
-}
-
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -732,8 +796,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
 }
 
 .modal-content {
@@ -746,25 +808,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
     overflow-y: auto;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     border: 2px solid #007bff;
-    display: flex; 
-    flex-direction: column; 
-    margin: auto; 
-    resize:both;
-    overflow: hidden;
-    min-width: 400px;
-    min-height: 300px;
-}
-
-/* Add resize handle indicator */
-.modal-content::after {
-    content: '⋰';
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    color: #666;
-    font-size: 16px;
-    pointer-events: none;
-    line-height: 1;
 }
 
 .modal-header {
@@ -804,11 +847,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
 .modal-body {
     padding: 1.5rem;
-    overflow-y: auto; 
-    flex: 1; 
-    -webkit-overflow-scrolling: touch;
-    max-height: none;
-    height: 100%;
 }
 
 .modal-footer {
@@ -874,19 +912,15 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 }
 
 .preview-table {
-    max-height: 400px;
+    max-height: 300px;
     overflow-y: auto;
-    overflow-x: auto;
     border: 1px solid #555;
     border-radius: 4px;
-    display: block;
-    -webkit-overlfow-scrolling: touch;
 }
 
 .preview-table table {
     width: 100%;
     border-collapse: collapse;
-    display: table; 
 }
 
 .preview-table th, .preview-table td {
@@ -973,8 +1007,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         min-width: auto;
     }
 }
-
-
 
         /* Waveform Editor Styles */
         .waveform-handle {
@@ -1226,243 +1258,21 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 padding: 1rem;
             }
         }
-
-        /* ===== TUTORIAL SYSTEM STYLES ===== */
-        .tutorial-version-header {
-            background: linear-gradient(135deg, #ff6b6b, #feca57);
-            color: white;
-            text-align: center;
-            padding: 8px;
-            font-weight: bold;
-            font-size: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            position: relative;
-            z-index: 1000;
-            margin-bottom: 10px;
-        }
-
-        #tutorialOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 99999;
-            display: none;
-        }
-
-        #tutorialOverlay.spotlight-mode {
-            background: transparent;
-            pointer-events: none;
-        }
-
-        #tutorialOverlay.spotlight-mode .tutorial-content {
-            pointer-events: auto;
-        }
-
-        .tutorial-overlay-parts {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: -1;
-            pointer-events: auto;
-        }
-
-        .tutorial-highlight-clear {
-            position: relative;
-            z-index: 100000 !important;
-            animation: tutorialPulse 2s infinite;
-            box-shadow: 0 0 0 4px #28a745, 0 0 20px rgba(40,167,69,0.8) !important;
-            border-radius: 4px !important;
-        }
-
-        .tutorial-highlight-clear * {
-            position: relative;
-            z-index: 100001 !important;
-        }
-
-        #tutorialOverlay.active {
-            display: block;
-        }
-
-        .tutorial-content {
-            position: absolute;
-            background: #fff;
-            border: 2px solid #007bff;
-            border-radius: 8px;
-            padding: 1.5rem;
-            max-width: 500px;
-            min-width: 300px;
-            width: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            color: #333;
-        }
-
-        /* Responsive design for tutorial windows */
-        @media (max-width: 768px) {
-            .tutorial-content {
-                max-width: 90vw;
-                padding: 1rem;
-                font-size: 14px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .tutorial-content {
-                max-width: 95vw;
-                padding: 0.75rem;
-                font-size: 13px;
-            }
-        }
-
-        .tutorial-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #eee;
-            cursor: move;
-            user-select: none;
-            background: #f8f9fa;
-            margin: -1.5rem -1.5rem 1rem -1.5rem;
-            padding: 0.75rem 1.5rem;
-            border-radius: 6px 6px 0 0;
-        }
-
-        .tutorial-header:active {
-            cursor: grabbing;
-        }
-
-        .tutorial-step {
-            font-size: 14px;
-            color: #666;
-            font-weight: bold;
-        }
-
-        .tutorial-skip {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .tutorial-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 1rem;
-            color: #007bff;
-        }
-
-        .tutorial-text {
-            margin-bottom: 1.5rem;
-            line-height: 1.5;
-            white-space: pre-line;
-        }
-
-        .tutorial-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .tutorial-nav-buttons {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .tutorial-next,
-        .tutorial-continue {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .tutorial-next:hover,
-        .tutorial-continue:hover {
-            background: #0056b3;
-        }
-
-        .tutorial-pointer {
-            position: absolute;
-            width: 0;
-            height: 0;
-            border: 10px solid transparent;
-        }
-
-        .tutorial-pointer.above {
-            bottom: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-top-color: #007bff;
-        }
-
-        .tutorial-pointer.below {
-            top: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-bottom-color: #007bff;
-        }
-
-        .tutorial-pointer.left {
-            right: -20px;
-            top: 50%;
-            transform: translateY(-50%);
-            border-left-color: #007bff;
-        }
-
-        .tutorial-pointer.right {
-            left: -20px;
-            top: 50%;
-            transform: translateY(-50%);
-            border-right-color: #007bff;
-        }
-
-        .tutorial-highlight {
-            position: relative;
-            z-index: 100000 !important;
-            box-shadow: 0 0 0 4px #007bff, 0 0 20px rgba(0,123,255,0.8) !important;
-            animation: tutorialPulse 2s infinite;
-        }
-
-        @keyframes tutorialPulse {
-            0%, 100% { box-shadow: 0 0 0 4px #007bff, 0 0 20px rgba(0,123,255,0.8); }
-            50% { box-shadow: 0 0 0 8px #007bff, 0 0 30px rgba(0,123,255,1); }
-        }
-
-        .tutorial-button-pulse {
-            animation: tutorialPulse 2s infinite;
-        }
-        /* ===== END TUTORIAL SYSTEM STYLES ===== */
     </style>
 </head>
 <body>
-    <!-- Tutorial Version Header -->
-    <div class="tutorial-version-header">
-        🎭 Theatre Cue Player - TUTORIAL VERSION - Learn with 39 Interactive Steps!
-    </div>
-
     <div class="header">
         <div class="header-title">
-            <h1>🎭 Theatre Cue Player Tutorial</h1>
+            <h1>🎭 Theatre Cue Player</h1>
             <div class="show-info">
                 <div class="show-name" id="showName" onclick="editShowName()">Untitled Show</div>
                 <div class="file-name" id="fileName">No file loaded</div>
             </div>
         </div>
         <div class="header-controls">
-            <button onclick="startTutorial()" id="tutorialButton" class="btn btn-outline-info first-time-setup-btn">Tutorial</button>
             <button onclick="toggleHelp()" id="helpToggle" class="btn btn-info">HELP<span class="help-icon" onclick="showHelp('HELP', 'Show/hide help system and enable help icons throughout the interface', event)">?</span></button>
-            <button onclick="showManual()" id="manualButton" class="btn btn-secondary">Manual<span class="help-icon" onclick="showHelp('Manual', 'View the complete Theatre Cue Player Tutorial user manual with detailed instructions', event)">?</span></button>
+            <button onclick="showManual()" id="manualButton" class="btn btn-secondary">Manual<span class="help-icon" onclick="showHelp('Manual', 'View the complete Theatre Cue Player user manual with detailed instructions', event)">?</span></button>
+            <button onclick="startTutorial()" id="tutorialButton" class="btn btn-outline-info first-time-setup-btn">Tutorial</button>
             <button onclick="editModeFromLanding()" class="btn btn-info">Edit Mode<span class="help-icon" onclick="showHelp('Edit Mode', 'Enable editing to modify cues, add new ones, and change settings', event)">?</span></button>
             <div id="editModeActions">
                 <button onclick="addAudioCue()" class="btn btn-primary">Add Audio Cue<span class="help-icon" onclick="showHelp('Add Audio Cue', 'Create a new audio cue for playing sound files', event)">?</span></button>
@@ -1477,13 +1287,13 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
     <div class="main-content">
         <div id="noProject" class="no-project">
-            <h2>Welcome to Theatre Cue Player Tutorial</h2>
+            <h2>Welcome to Theatre Cue Player</h2>
             <p>Audio cue management for classroom and live theatre productions.</p>
             
             <div class="buttons">
                 <div class="button-grid">
                     <button onclick="loadShowFolder()" class="btn btn-success btn-lg">Load Show Folder<span class="help-icon" onclick="showHelp('Load Show Folder', 'Select a folder containing both audio files and a cue file - one-click setup!', event)">?</span></button>
-                    <p class="button-description">Select folder containing audio and Theatre Cue Player Tutorial cue files</p>
+                    <p class="button-description">Select folder containing audio and Theatre Cue Player cue files</p>
                     
                     <button onclick="loadAudioFolder()" class="btn btn-primary btn-lg">Load Audio Folder<span class="help-icon" onclick="showHelp('Load Audio Folder', 'Select your main audio folder - all audio files in subfolders will be included', event)">?</span></button>
                     <p class="button-description">Select main audio folder (includes all files in subfolders)</p>
@@ -1500,7 +1310,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
                 Blinn College-Brenham Campus | kevin.patrick@blinn.edu</p>
                 <p><strong>Coded by:</strong> Claude.AI</p>
-                <p><strong>Version:</strong> 0.9.0 | <strong>Last Update:</strong> July 27, 2025</p>
+                <p><strong>Version:</strong> 0.9.1 | <strong>Last Update:</strong> July 27, 2025</p>
                 <p style="margin-top: 1rem; font-style: italic;">Beta Version - Feedback Welcome</p>
 		<p style="font-size: 0.8rem; color: #aaa; margin-top: 1rem;">
  		<strong>License:</strong> <a href="https://opensource.org/licenses/MIT" style="color: #ffd700;">MIT License</a> – Free to use, modify, and share. </p>
@@ -1559,7 +1369,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Ctrl+Y:</strong> Redo<span class="help-icon inline" onclick="showHelp('Ctrl+Y - Redo', 'Redo the last undone operation (only works in Edit Mode). Redo history is cleared when new edits are made.', event)">?</span></div>
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">A:</strong> Add Audio Cue<span class="help-icon inline" onclick="showHelp('A - Add Audio Cue', 'Quick add audio cue (only works in Edit Mode). Inserts after selected cue with smart numbering.', event)">?</span></div>
                         <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">F:</strong> Add Fade Cue<span class="help-icon inline" onclick="showHelp('F - Add Fade Cue', 'Quick add fade cue (only works in Edit Mode). Inserts after selected cue with smart target assignment.', event)">?</span></div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Ctrl+Shift+1-9:</strong> Assign Hotkey<span class="help-icon inline" onclick="showHelp('Ctrl+Shift+Number Keys - Assign Hotkeys', 'In Edit Mode: Assign 1-10 keys to specific cues for instant triggering. Great for sound effects!', event)">?</span></div>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Shift+F2-F10:</strong> Assign Hotkey<span class="help-icon inline" onclick="showHelp('Shift+F Keys - Assign Hotkeys', 'In Edit Mode: Assign F2-F10 keys to specific cues for instant triggering. Great for sound effects!', event)">?</span></div>
                     </div>
                     <div id="hotkeyAssignments" style="margin-top: 0.8rem; font-size: 0.75rem; color: #aaa;">
                         <div onclick="showHotkeyAssignments()" style="cursor: pointer; color: #17a2b8; text-decoration: underline;">📋 View Hotkey Assignments</div>
@@ -1742,16 +1552,15 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         let editMode = false;
         let helpMode = false;
         let audioFilesLoaded = 0; //moved from 2 other locations to here
+        // ===== TUTORIAL SYSTEM VARIABLES=====
+        let tutorialMode = false;
+        let tutorialStep = 0;
+        let tutorialFlow = [];
+        let tutorialWaitingFor = null;
+        let hasSeenTutorial = false;
+        // ===== END TUTORIAL SYSTEM VARIABLES====
         let audioContext;
         let playingCues = new Map(); // Map of cueNumber -> {source, gainNode, startTime, isFading}
-        
-        // ===== TUTORIAL SYSTEM VARIABLES=====
-        let tutorialActive = false;
-        let currentTutorialStep = 0;
-        let tutorialManager = null;
-        let previousCueCount = 0;
-        let previousFadeCount = 0;
-        // ===== END TUTORIAL SYSTEM VARIABLES====
         let pendingTimeouts = new Map(); // Map of timeout type -> Set of timeout IDs for auto-follow/auto-continue
         let stopAllCalled = false; // Flag to prevent auto-follow/auto-continue after stopAll
         let hotkeyAssignments = new Map(); // Map of F-key codes to cue numbers
@@ -1760,506 +1569,76 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         // ===== UNDO/REDO SYSTEM VARIABLES =====
         let undoStack = []; // Array of project state snapshots
         let redoStack = []; // Array of undone states for redo functionality
-        const MAX_UNDO_LEVELS = 10;
+        const MAX_UNDO_LEVELS = 5;
         // ===== END UNDO/REDO SYSTEM VARIABLES =====
-        
-        // ===== TUTORIAL SYSTEM DATA =====
-        const tutorialSteps = [
-            {
-                stepNumber: 1,
-                title: "Begin Tutorial",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "This is the Tutorial version of Theatre Cue Player, based on version 0.9.0.\n\nPlease use the most recent project version for class and production.\n\nFor the most recent version, visit: <a href='https://theatre-cue-player.netlify.app/' target='_blank' style='color: #007bff; text-decoration: underline;'>https://theatre-cue-player.netlify.app/</a>\n\nThis tutorial will guide you through 38 interactive steps to learn all features of Theatre Cue Player.\n\nIf a tutorial window is blocking your view, you can drag it to a different location by grabbing the top bar",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 2,
-                title: "Load Show Folder",
-                uiTarget: "Load Show Folder button",
-                position: "left",
-                overlayText: "Click here to select the folder with the files and folder structure you downloaded. Make sure they are uncompressed.\n\nSelect the folder that includes Sample-Cue-Sheet.json and the audio files (some in folders).\n\nNOTE you will not see the files when you click to select a folder.",
-                userAction: "click_element",
-                successTrigger: "show_loaded"
-            },
-            {
-                stepNumber: 3,
-                title: "Introduction",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "When you open a Show Folder, you begin in Show Mode. All edit functions are disabled. Let's look around and see what's here.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 4,
-                title: "Show Title",
-                uiTarget: "Show Info",
-                position: "below",
-                overlayText: "Here's the title for your show and the filename for the cue file. We use the file format \".json\" to store show and cue data.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 5,
-                title: "Top bar",
-                uiTarget: "Help",
-                position: "below",
-                overlayText: "Here you can open a context-sensitive help menu, read the short manual, run a tutorial on playback, and enter Edit Mode.\n\nClick the HELP button to activate context-sensitive help throughout the interface.",
-                userAction: "click_element",
-                successTrigger: "help_mode_active"
-            },
-            {
-                stepNumber: 6,
-                title: "Explore Help Mode",
-                uiTarget: "Exit Help",
-                position: "bottom-center",
-                overlayText: "Great! Now you can see yellow question marks throughout the interface. Click on some question marks to see context-sensitive help content appear in the sidebar.\n\nClick \"Exit Help\" to continue the tutorial.",
-                userAction: "click_element",
-                successTrigger: "help_mode_inactive"
-            },
-            {
-                stepNumber: 7,
-                title: "Show Control",
-                uiTarget: "Next",
-                position: "bottom-center",
-                overlayText: "The GO button is how you play and progress through the cues. You can also use the spacebar for GO.\n\nTry playing some cues using GO, STOP ALL, FADE ALL, Jump, and Jump to First buttons. Notice the cue that is playing turns green and shows in \"Currently Playing\".\n\nClick Next when ready to continue.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 8,
-                title: "Jump to First",
-                uiTarget: "Next",
-                position: "bottom-center",
-                overlayText: "Now that you've gone through some cues, it's time to move back to the first cue. Just click Jump to First, or type in 1 and click Jump.\n\nClick Next to continue the tutorial.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 9,
-                title: "Actions",
-                uiTarget: "Next",
-                position: "bottom-center",
-                overlayText: "Each individual cue also has playback controls. Sometimes we want to play cues out of order. Sometimes we click \"GO\" before it was the right time.\n\nIn Theatre Cue Player, you can stop or fade out individual cues without having to stop the whole show.\n\nTry playing a longer cue with its individual green play button, then fade it out with the yellow slash. Click Next after you've experimented with this.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 10,
-                title: "Keyboard Shortcuts",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "Theatre Cue Player utilizes many of the standard cue playback keyboard shortcuts. Try some out, and click Next when ready to continue.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 11,
-                title: "Edit Mode",
-                uiTarget: "Edit Mode button",
-                position: "below",
-                overlayText: "Let's go into edit mode to add and edit sound and fade cues",
-                userAction: "click_element",
-                successTrigger: "edit_mode_active"
-            },
-            {
-                stepNumber: 12,
-                title: "Edit Mode Intro",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "Not much changed visually. We have some more buttons at top. But now every cell for every cue is editable.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 13,
-                title: "Invalid Target",
-                uiTarget: "Next",
-                position: "bottom-center",
-                overlayText: "Red cells indicate the target file is not found. Click on the cell, then click on \"Select Audio File\", and select \"Player-by-ttsmaker.mp3\".",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 14,
-                title: "Add Audio Cue",
-                uiTarget: "Add Audio Cue Button",
-                position: "bottom-center",
-                overlayText: "When you \"Add Audio Cue\", it will be added to the cell below the current selection and automatically numbered. Use the arrow keys or Jump to First to select Cue 1. Then press \"Add Audio Cue\" or use the 'A' keyboard shortcut.",
-                userAction: "wait_for_condition",
-                successTrigger: "cue_added"
-            },
-            {
-                stepNumber: 15,
-                title: "Select Target File",
-                uiTarget: "Next",
-                position: "bottom-left",
-                overlayText: "We added a cue, but now we need to say which file to play. Click on \"No File\" in the Target column of the cue we just added.",
-                userAction: "wait_for_condition",
-                successTrigger: "file_selector_opened"
-            },
-            {
-                stepNumber: 16,
-                title: "Select Audio File",
-                uiTarget: "Next",
-                position: "left",
-                overlayText: "Click on the dropdown to show all the audio files available in the show folder, then select \"Cue-by-ttsmaker.mp3\". Click Next when you've selected the file.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 17,
-                title: "Rename and Renumber Cue",
-                uiTarget: "Cue #",
-                position: "right",
-                overlayText: "Click on the Cue Label column and name it \"Cue\".\n\nThen click on the Cue # column and type in 2 then OK.\n\nClick Next when done.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 18,
-                title: "Reorder Cue",
-                uiTarget: "Next",
-                position: "below",
-                overlayText: "Do you need to move the cue to another position in the cue list? If so, Click on Reorder Cues and use the arrow keys to place it between the cues labeled \"Theatre\" and \"Player\". Then press Done.\n\nClick Next to continue.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 19,
-                title: "Notice the Autofollow tag",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "Did you notice the → got added to the cue name? And the row changed to a light gray? Why is that?\n\nLook at the cue above it. The Auto Follow column is marked. That means when the first cue completes, the next cue will automatically Follow it and play by itself. Press the Green play button on Cue 1 and see it in action.\n\nClick Next when ready.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 20,
-                title: "Add autofollow",
-                uiTarget: "Next",
-                position: "below",
-                overlayText: "Let's add an AutoFollow to Cue 2.\n\nFind the row with Cue 2 and the column labeled \"Autofollow\". Click inside the box so it looks like ☑.\n\nNotice that the Autofollow indicator arrow has been added to the name of cue 3.\n\nClick Next when done.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 21,
-                title: "Play the sequence",
-                uiTarget: "GO button",
-                position: "centered",
-                overlayText: "Let's try the first sequence now. If you aren't on Cue 1, you can press Jump to First, type in 1 then press Jump, or just move with the up and down arrow keys.\n\nThen Press Go to hear the sequence.",
-                userAction: "click_element",
-                successTrigger: "audio_playing"
-            },
-            {
-                stepNumber: 22,
-                title: "Trim audio",
-                uiTarget: "Next",
-                position: "left",
-                overlayText: "Let's see if we can make that sound a little better by getting rid of the pauses between the words. The easiest way is with the Waveform Editor. Click the ~ button for Cue 1.\n\nClick Next when you have the waveform editor open.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 23,
-                title: "Waveform editor Intro",
-                uiTarget: "Next",
-                position: "left",
-                overlayText: "We're now in the Waveform editor. You can click on the Help button here to see what the other buttons do.\n\nBut first, let's trim that silence! Use your mouse and click right where you first start seeing soundwaves. Do you see a white line? That's called the playhead.\n\nNow find Trim Start, and click the \"Set at Playhead\" button below it. You've just trimmed the silence at the beginning of the sound. Press the blue Play Selection button and compare it with Play Full.\n\nNow do the same process but trim the silence at the end. You can zoom in with the magnifying glass for more precision.\n\nWhen you're done, click \"Apply Changes\". Click Next when finished.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 24,
-                title: "Test Trimmed Audio",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "Make sure you are on Cue 1 and press GO. Notice that Cue #2 autofollows much quicker now. You can edit Cues 2 and 3 in the waveform editor if you like.\n\nClick Next when done.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 25,
-                title: "Notice Fade In",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "Notice that Cue 4 has an integrated fade in time of 5 seconds. If you click on the Waveform Editor for Cue 4, you can even see the fade time shown.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 26,
-                title: "Fade Cues",
-                uiTarget: "Add Fade Cue",
-                position: "bottom-center",
-                overlayText: "Let's look at Cue 6. Use the arrow keys to select the cue, or Jump to cue 6 on the sidebar.\n\nLet's add a fade cue. Click the yellow \"Add Fade Cue\" on the top bar or use the hotkey \"F\".",
-                userAction: "wait_for_condition",
-                successTrigger: "fade_cue_added"
-            },
-            {
-                stepNumber: 27,
-                title: "Fade Cues (2)",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "If the fade cue didn't insert in the right place, use \"Reorder Cues\" to move it. Change the cue #, give it a useful Cue Label, make sure it is targeting Cue 6.\n\nFade cues default to 0% Volume, but you can insert any number between 0% (fade out completely) and 110% (which makes it louder).\n\nYou can also change the duration of the fade time, from 0 seconds (immediate) to as long as the cue file duration.\n\nClick Next to continue.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 28,
-                title: "Pan/Balance",
-                uiTarget: "Add Audio Cue Button",
-                position: "centered",
-                overlayText: "Let's add another cue. Use the arrow keys to select the last cue in the cue list. Then Press \"Add Audio Cue\" or use the hotkey \"A\".",
-                userAction: "wait_for_condition",
-                successTrigger: "cue_added"
-            },
-            {
-                stepNumber: 29,
-                title: "Select audio file",
-                uiTarget: "Next",
-                position: "bottom-center",
-                overlayText: "Notice in the audio selection window that we can see how our sounds are organized by folders. These examples use the root folder, Music/ and SFX/.\n\nClick Target to open the file selector. Pick any sound, but maybe SFX/bbc_footsteps-_07074187.mp3 from the BBC Sound Effects Library is a good choice.\n\nClick Next to continue.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 30,
-                title: "Pan to the left",
-                uiTarget: "Next",
-                position: "below",
-                overlayText: "Go ahead and play the sound.\n\nNow let's make it move from left to right. First step is to click the Pan column for this cue.\n\nClick Next when you see the \"Set Pan\" window.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 31,
-                title: "Set Pan",
-                uiTarget: "-100 = all to the Left button",
-                position: "bottom-center",
-                overlayText: "In Theatre Cue Player, a sound that plays only on the left speaker is numbered -100. A sound that plays equally on both speakers is set to 0. And a sound that plays only on the right speaker is 100.\n\nYou can type in a number in the box or press the shortcut button \"-100 = all to the Left\". For this tutorial, click the \"-100 = all to the Left\" button.",
-                userAction: "click_element",
-                successTrigger: "pan_set_left"
-            },
-            {
-                stepNumber: 32,
-                title: "Panning with Fade Cues",
-                uiTarget: "Next",
-                position: "bottom-center",
-                overlayText: "Click \"Add Fade Cue\" on the top bar. Set the 'Target' for the fade cue to be the footsteps cue we just added.\n\nTo make the footsteps cue sound like it is walking from left to right, we need to set the Pan for the fade all the way to the right.\n\nBut don't stop there! Fade cues default to fading the volume out over 5 seconds. Because we don't want the volume to fade, click that cell in the Volume column and type in 100.\n\nPlay through the sequence and adjust timings to what sounds best. You can add an Auto Continue to the footsteps sound cue and a delay to the fade cue. Play around!\n\nClick Next when you are ready to continue.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 33,
-                title: "Begin Hot Keys",
-                uiTarget: "Next",
-                position: "left",
-                overlayText: "Let's add one more Audio Cue\n\nThis time, select the airhorn sound in the SFX folder. You name the cue airhorn.\n\nClick Next when you have that cue loaded up.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-{
-    stepNumber: 34,
-    title: "Add Hot Key",
-    uiTarget: "Next",
-    position: "centered",
-    overlayText: "Let's make that sound a hotkey. Sometimes you have a sound that needs to play based on stage action and not necessarily in order. Hot keys are great for that.\n\nHold down Ctrl+Shift and press 1.\n\nType in the cue number for the air horn to assign it, then press OK.\n\nPress next to continue.",
-    userAction: "click_next",
-    successTrigger: ""
-},
-            {
-                stepNumber: 35,
-                title: "Play the Hot Key",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "You'll need to leave EDIT mode to play the hotkey sounds. Click on Exit Edit, then Press the 1 button on your keyboard. Are you hearing the air horn? Click Next when you're done being a DJ.",
-                userAction: "click_next",
-                successTrigger: ""
-            },
-            {
-                stepNumber: 36,
-                title: "Saving the Cue File",
-                uiTarget: "Save Cue File As",
-                position: "centered",
-                overlayText: "Now it's time to save our cue file. Depending on your browser and computer settings, the cue file might save only to your Downloads folder or it might open a folder picker. Pay attention to where the file is going so you can move it into your show folder.\n\nClick on \"Save Cue File As\" now, name your file, and save your cue file.",
-                userAction: "click_element",
-                successTrigger: "file_saved"
-            },
-            {
-                stepNumber: 37,
-                title: "Show Mode",
-                uiTarget: "Exit Edit",
-                position: "below",
-                overlayText: "We've made our edits and saved our cue file. Let's go into Show Mode so we don't accidentally change any cues.\n\nClick Exit Edit.",
-                userAction: "click_element",
-                successTrigger: "edit_mode_inactive"
-            },
-            {
-                stepNumber: 38,
-                title: "End Tutorial",
-                uiTarget: "Next",
-                position: "centered",
-                overlayText: "You've made it through the tutorial. We've hit the major elements. Please explore the parts we didn't covered, like Auto Continue, Delay, Loops, and Renumber Cues.\n\nClick Next to end the tutorial.",
-                userAction: "click_next",
-                successTrigger: ""
-            }
-        ];
-        
-        const uiTargetSelectors = {
-            "Tutorial Button": "#tutorialButton",
-            "Load Show Folder button": "button[onclick*='loadShowFolder'], .btn:contains('Load Show Folder')", 
-            "Show Info": ".show-info",
-            "Header Controls": ".header-controls",
-            "Help": "#helpToggle",
-            "Exit Help": "#helpToggle",
-            "GO button": "button[onclick*='goNext']",
-            "Jump to First": "button[onclick*='jumpToFirst']",
-            "Edit Mode button": "button[onclick*='editModeFromLanding'], button[onclick*='toggleEditMode']",
-            "Add Audio Cue Button": "button[onclick*='addAudioCue']", 
-            "Add Fade Cue": "button[onclick*='addFadeCue']",
-            "Save Cue File As": "button[onclick*='saveCueFile']",
-            "Exit Edit": "button[onclick*='toggleEditMode']",
-            "Reorder Cues": "button[onclick*='openReorderModal']",
-            "Target button for the newly added cue": ".edit-field[data-field='target']:last-of-type",
-            "No File Target Cell": "[onclick*='selectFile'], .target-field, .edit-field[data-field='target'], td[onclick*='selectFile'], .cue-table tbody tr:last-child td, .cue-table tbody tr:last-child .target, button[onclick*='selectFile']",
-            "--Select Audio File--": "option:contains('Select Audio File')",
-            "Cue-by-ttsmaker.mp3": "option:contains('Cue-by-ttsmaker.mp3')",
-            "Cue Label": ".edit-field[data-field='label']:last-of-type",
-            "Cue #": ".edit-field[data-field='cueNumber']:last-of-type", 
-            "Green play button for cue 1": ".cue-table tbody tr:first-child .play-btn",
-            "Autofollow button for cue 2": ".cue-table tbody tr:nth-child(2) .autofollow-btn",
-            "Waveform editor for Cue 1": ".cue-table tbody tr:first-child .waveform-icon",
-            "Apply Changes": "button[onclick*='applyWaveformChanges']",
-            "Select an audio file": "option:contains('Select')",
-            "Pan": ".edit-field[data-field='pan']:last-of-type",
-            "-100 = all to the Left button": "button:contains('-100')",
-            "OK button": "button:contains('OK')",
-            "document (whole page)": "body",
-            "Next": "next_button"
-        };
-        
-        const successTriggers = {
-            "tutorial_started": () => tutorialActive,
-            "show_loaded": () => {
-                const hasProject = project && project.cues && project.cues.length > 0;
-                const hasUI = document.getElementById('cueListContainer').style.display !== 'none';
-                console.log('Checking show_loaded:', { hasProject, hasUI, cueCount: project?.cues?.length });
-                return hasProject && hasUI;
-            },
-            "help_mode_active": () => helpMode,
-            "help_mode_inactive": () => !helpMode,
-            "edit_mode_active": () => editMode,
-            "edit_mode_inactive": () => !editMode,
-            "cue_added": () => {
-                // Only trigger if we're actually on Step 14 or Step 28 to prevent false positives from other steps
-                if (tutorialManager && tutorialManager.currentStep !== 13 && tutorialManager.currentStep !== 27) { // Step 14 is index 13, Step 28 is index 27
-                    return false;
-                }
-                const currentCount = project.cues.length;
-                const hasNewCue = currentCount > previousCueCount;
-                console.log('Checking cue_added:', { currentStep: tutorialManager?.currentStep, currentCount, previousCueCount, hasNewCue });
-                
-                // Extra safety: also check if this step's successTrigger is actually 'cue_added'
-                const currentStepData = tutorialManager?.steps[tutorialManager.currentStep];
-                const isCorrectTrigger = currentStepData?.successTrigger === 'cue_added';
-                console.log('cue_added extra check:', { isCorrectTrigger, stepTrigger: currentStepData?.successTrigger });
-                
-                return hasNewCue && isCorrectTrigger;
-            },
-            "file_saved": () => currentFileName !== 'No file loaded',
-            "file_selector_opened": () => {
-                const selector = document.querySelector('.file-selector');
-                console.log('Checking for file selector, found:', !!selector);
-                if (selector) {
-                    console.log('File selector found:', selector);
-                    const isVisible = selector.offsetParent !== null;
-                    const hasSelect = selector.querySelector('select');
-                    console.log('File selector visible:', isVisible, 'has select:', !!hasSelect);
-                } else {
-                    console.log('File selector not found');
-                }
-                return !!selector;
-            },
-            "audio_file_selector_opened": () => document.querySelector('.audio-file-selector, .file-selector, select[data-field="target"], .target-selector, #audioFileModal'),
-            "audio_files_shown": () => {
-                const fileSelector = document.querySelector('.file-selector select');
-                const isOpen = fileSelector && document.activeElement === fileSelector;
-                const hasOptions = fileSelector && fileSelector.options && fileSelector.options.length > 1;
-                console.log('Checking audio files shown - selector found:', !!fileSelector, 'is focused:', isOpen, 'has options:', hasOptions);
-                return isOpen && hasOptions;
-            },
-            "audio_file_selected": () => {
-                return new Promise(resolve => {
-                    setTimeout(() => {
-                        if (typeof project !== 'undefined' && project.cues) {
-                            console.log('Checking cues for Cue-by-ttsmaker.mp3, total cues:', project.cues.length);
-                            for (let i = 0; i < project.cues.length; i++) {
-                                const cue = project.cues[i];
-                                console.log(`Cue ${i+1}: file="${cue.file}", target="${cue.target}"`);
-                                if (cue.file === 'Cue-by-ttsmaker.mp3') {
-                                    console.log('SUCCESS: Audio file assigned to cue:', cue.file);
-                                    resolve(true);
-                                    return;
-                                }
-                            }
-                        }
-                        console.log('Audio file not found in any cue');
-                        resolve(false);
-                    }, 500);
-                });
-            },
-            "cue_renamed": () => true,
-            "cue_renumbered": () => {
-                if (typeof project !== 'undefined' && project.cues) {
-                    for (let cue of project.cues) {
-                        if (cue.cueNumber === "2" || cue.cueNumber === 2) {
-                            console.log('Cue renumbered to 2:', cue.cueNumber);
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            },
-            "reorder_modal_closed": () => !document.querySelector('.reorder-modal'),
-            "audio_playing": () => playingCues.size > 0,
-            "all_loops_completed_cue_2": () => {
-                return playingCues.size === 0;
-            },
-            "autofollow_added": () => true,
-            "waveform_editor_opened": () => {
-                const modal = document.querySelector('#waveformModal');
-                console.log('Checking waveform modal:', modal ? modal.style.display : 'modal not found');
-                return modal && (modal.style.display === 'block' || modal.style.display === '');
-            },
-            "waveform_applied": () => document.querySelector('#waveformModal').style.display === 'none',
-            "fade_cue_added": () => {
-                // Only trigger if we're actually on Step 26 to prevent false positives
-                if (tutorialManager && tutorialManager.currentStep !== 25) { // Step 26 is index 25
-                    return false;
-                }
-                const currentFadeCount = project.cues.filter(c => c.type === 'fade').length;
-                const hasNewFadeCue = currentFadeCount > (previousFadeCount || 0);
-                console.log('Checking fade_cue_added:', { currentStep: tutorialManager?.currentStep, currentFadeCount, previousFadeCount, hasNewFadeCue });
-                return hasNewFadeCue;
-            },
-            "fade_configured": () => true,
-            "pan_editor_opened": () => true,
-            "pan_set_left": () => true,
-            "hotkey_assigned": () => hotkeyAssignments.size > 0,
-            "hotkey_confirmed": () => true
-        };
-        // ===== END TUTORIAL SYSTEM DATA =====
-        
         let selectedCueIndex = -1; // Index of currently selected cue for insertion (-1 = none selected)
         let currentFileName = 'No file loaded';
         let masterAnalyser = null;
         let masterGainNode = null;
         let vuMeterAnimationId = null;
 
+        // Helper function to get all instances of a cue number
+        function getInstancesByCueNumber(cueNumber) {
+            const instances = [];
+            for (let [key, value] of playingCues) {
+                if (key.startsWith(cueNumber + '_')) {
+                    instances.push({key, data: value});
+                }
+            }
+            return instances;
+        }
+
+        // ===== TUTORIAL FLOW DEFINITION =====
+        const firstTimeFlow = [
+            {
+                title: "Welcome to Theatre Cue Player!",
+                text: "This tool helps you play audio cues for theatre. Let's set up your first show in 3 steps.",
+                highlight: null,
+                nextButton: "Show Me How",
+                action: null
+            },
+            {
+                title: "Step 1: Load Your Audio Files",
+                text:   "When you click 'Load Audio Folder', your browser will open a folder picker. Don't worry if it looks empty at first - that's normal! Just navigate to your folder with .mp3/.wav files and click 'Select Folder'." +
+                        "\n\n" + 
+                        "It will count all the files it finds, but only use the sound files.",
+                highlight: ".btn:contains('Load Audio Folder')",
+                nextButton: "Load Audio Folder",
+                action: "waitForAudioFolder"
+            },
+            {
+                title: "Audio Files Loading...",
+                text:   "Theatre Cue Player is now scanning your folder and all subfolders for audio files." + 
+                        "\n" + 
+                        "This is called 'recursive search' - it finds audio files anywhere in your 'root' folder and subfolders." +
+                        "\n\n"+
+                        "You can organize your folders by Act or Scene to make selections easier.",
+                highlight: "#fileCount",
+                nextButton: null,
+                action: "waitForAudioComplete"
+            },
+            {
+                title: "Great! Audio Files Found",
+                text: "Found [X] audio files. Now let's load a cue file that tells the app which audio to play and when.",
+                highlight: ".btn:contains('Load Cue File')",
+                nextButton: "Load Cue File", 
+                action: "waitForCueFile"
+            },
+            {
+                title: "Perfect! You're Ready to Go",
+                text: "Your show is loaded! See the cue list below? Click any cue's ▶️ button to test it, or press the big 'GO' button to start from the beginning.",
+                highlight: ".btn:contains('GO')",
+                nextButton: "Try It Now",
+                action: "waitForGO"
+            },
+            {
+                title: "🎵 Success!",
+                text: "You're running cues like a pro. Press F1 anytime for help with specific features.",
+                highlight: null,
+                nextButton: "End Tutorial",
+                action: "complete"
+            }
+        ];
 
         // Help system functions
         function toggleHelp() {
@@ -2312,6 +1691,170 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             console.log('Manual closed');
         }
 
+        // ===== TUTORIAL SYSTEM FUNCTIONS =====
+        function startTutorial() {
+            // Check if they've seen it before
+            if (localStorage.getItem('tcp_tutorial_completed') === 'true') {
+                if (!confirm('Would you like to run the First Time Setup tutorial again?')) {
+                    return;
+                }
+            }
+            
+            tutorialMode = true;
+            tutorialStep = 0;
+            tutorialFlow = [...firstTimeFlow];
+            showTutorialStep();
+            
+            console.log('Tutorial started');
+        }
+
+        function showTutorialStep() {
+            if (tutorialStep >= tutorialFlow.length) {
+                completeTutorial();
+                return;
+            }
+            
+            const step = tutorialFlow[tutorialStep];
+            const tutorialWindow = document.getElementById('tutorialWindow');
+            const tutorialBackdrop = document.getElementById('tutorialBackdrop');
+            const tutorialTitle = document.getElementById('tutorialTitle');
+            const tutorialText = document.getElementById('tutorialText');
+            const tutorialProgress = document.getElementById('tutorialProgress');
+            const tutorialNextBtn = document.getElementById('tutorialNextBtn');
+            
+            // Clear any existing highlights
+            document.querySelectorAll('.tutorial-highlight').forEach(el => {
+                el.classList.remove('tutorial-highlight');
+            });
+            
+            // Show tutorial window
+            tutorialWindow.classList.add('active');
+            tutorialBackdrop.classList.add('active');
+            
+            // Update content
+            tutorialTitle.textContent = step.title;
+            tutorialText.textContent = step.text.replace('[X]', audioFilesLoaded || '0');
+            tutorialProgress.textContent = `Step ${tutorialStep + 1} of ${tutorialFlow.length}`;
+            
+            // Update button
+            if (step.nextButton) {
+                tutorialNextBtn.textContent = step.nextButton;
+                tutorialNextBtn.style.display = 'inline-block';
+            } else {
+                tutorialNextBtn.style.display = 'none';
+            }
+            
+            // Highlight element if specified
+            if (step.highlight) {
+                highlightElement(step.highlight);
+            }
+            
+            // Set up action waiting
+            tutorialWaitingFor = step.action;
+            
+            console.log('Showing tutorial step:', tutorialStep, step.title);
+        }
+
+        function nextTutorialStep() {
+            const step = tutorialFlow[tutorialStep];
+            
+            if (step.action === 'waitForAudioFolder') {
+                // Hide tutorial and trigger audio folder loading
+                hideTutorialWindow();
+                loadAudioFolder();
+                // Tutorial will resume when audio loading starts
+            } else if (step.action === 'waitForCueFile') {
+                hideTutorialWindow();
+                loadCueFile();
+                // Tutorial will resume when cue file loads
+            } else if (step.action === 'waitForGO') {
+                hideTutorialWindow();
+                // Let them click GO naturally
+            } else {
+                // Normal advancement
+                tutorialStep++;
+                showTutorialStep();
+            }
+        }
+
+        function skipTutorial() {
+            if (confirm('Are you sure you want to skip the tutorial?')) {
+                completeTutorial();
+            }
+        }
+
+        function completeTutorial() {
+            tutorialMode = false;
+            hideTutorialWindow();
+            localStorage.setItem('tcp_tutorial_completed', 'true');
+            
+            // Clear highlights
+            document.querySelectorAll('.tutorial-highlight').forEach(el => {
+                el.classList.remove('tutorial-highlight');
+            });
+            
+            console.log('Tutorial completed');
+        }
+
+        function hideTutorialWindow() {
+            const tutorialWindow = document.getElementById('tutorialWindow');
+            const tutorialBackdrop = document.getElementById('tutorialBackdrop');
+            
+            tutorialWindow.classList.remove('active');
+            tutorialBackdrop.classList.remove('active');
+        }
+
+        function highlightElement(selector) {
+            try {
+                let element;
+                
+                // Handle special selectors
+                if (selector.includes("contains")) {
+                    // Find button containing specific text
+                    const text = selector.match(/contains\('([^']+)'\)/)[1];
+                    element = Array.from(document.querySelectorAll('button')).find(btn => 
+                        btn.textContent.includes(text)
+                    );
+                } else {
+                    element = document.querySelector(selector);
+                }
+                
+                if (element) {
+                    element.classList.add('tutorial-highlight');
+                }
+            } catch (e) {
+                console.log('Could not highlight element:', selector);
+            }
+        }
+
+        // Tutorial event handlers
+        function onAudioFolderStart() {
+            if (tutorialMode && tutorialWaitingFor === 'waitForAudioFolder') {
+                tutorialStep++;
+                showTutorialStep();
+            }
+        }
+
+        function onAudioFolderComplete() {
+            if (tutorialMode && tutorialWaitingFor === 'waitForAudioComplete') {
+                tutorialStep++;
+                showTutorialStep();
+            }
+        }
+
+        function onCueFileLoaded() {
+            if (tutorialMode && tutorialWaitingFor === 'waitForCueFile') {
+                tutorialStep++;
+                showTutorialStep();
+            }
+        }
+
+        function onGOPressed() {
+            if (tutorialMode && tutorialWaitingFor === 'waitForGO') {
+                tutorialStep++;
+                showTutorialStep();
+            }
+        }
 
         // ===== EDIT MODE FROM LANDING PAGE FIX =====
         function editModeFromLanding() {
@@ -2322,6 +1865,28 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             }
         }
 
+        // ===== SMART TUTORIAL BUTTON (ADD AFTER OTHER TUTORIAL FUNCTIONS) =====
+        function updateTutorialButton() {
+            const btn = document.getElementById('tutorialButton');
+            if (!btn) return;
+            
+            if (!project || project.cues.length === 0) {
+                // Landing page - no project loaded
+                btn.textContent = "Tutorial";
+                btn.title = "Learn how to load audio files and cue lists";
+            } else if (editMode) {
+                // Edit mode - has project
+                btn.textContent = "Editor Help";
+                btn.title = "Learn how to edit cues and add new ones";
+            } else {
+                // Show mode - has project, not editing
+                btn.textContent = "Playback Help";
+                btn.title = "Learn how to run cues during a show";
+            }
+            
+            // For now, all lead to the same tutorial
+            // Later we'll add: btn.onclick = () => startTutorial(contextType);
+        }
 
         function editShowName() {
             if (!editMode) {
@@ -2396,45 +1961,27 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         // Keyboard Shortcuts System
         function setupKeyboardShortcuts() {
             document.addEventListener('keydown', function(event) {
-                // TEMPORARY DEBUG
-        if (event.ctrlKey && event.shiftKey && event.key >= '1' && event.key <= '9') {
-            console.log('=== HOTKEY DEBUG ===');
-            console.log('Event target:', event.target);
-            console.log('Edit mode:', editMode);
-            console.log('Help mode:', helpMode);
-            console.log('Tutorial active:', tutorialActive);
-            console.log('Active element:', document.activeElement);
-        }
-        // END DEBUG
-        // Don't interfere with typing in input fields
-        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
-            return;
-        }
-        
-        // Don't interfere with waveform editor controls
-        const waveformModal = document.getElementById('waveformModal');
-        if (waveformModal && waveformModal.style.display === 'block') {
-            return; // Let waveform keyboard handler take precedence
-        }
-        
-        // Get key details
-        const key = event.key;
-        const keyCode = event.code;
-        const ctrlKey = event.ctrlKey || event.metaKey;
-        const shiftKey = event.shiftKey;
-        
-        console.log('Key pressed:', key, 'Code:', keyCode, 'Ctrl:', ctrlKey, 'Shift:', shiftKey);
-        
-        // SPECIAL: Allow hotkey assignment to work even during tutorial
-        if (key >= '1' && key <= '9' && ctrlKey && shiftKey && editMode) {
-            event.preventDefault();
-            console.log('Assigning hotkey for key:', key);
-            assignHotkey(key);
-            return;
-        }
-        
-        // Handle different shortcuts
-        switch(key) {
+                // Don't interfere with typing in input fields
+                if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+                    return;
+                }
+                
+                // Don't interfere with waveform editor controls
+                const waveformModal = document.getElementById('waveformModal');
+                if (waveformModal && waveformModal.style.display === 'block') {
+                    return; // Let waveform keyboard handler take precedence
+                }
+                
+                // Get key details
+                const key = event.key;
+                const keyCode = event.code;
+                const ctrlKey = event.ctrlKey || event.metaKey;
+                const shiftKey = event.shiftKey;
+                
+                console.log('Key pressed:', key, 'Code:', keyCode, 'Ctrl:', ctrlKey, 'Shift:', shiftKey);
+                
+                // Handle different shortcuts
+                switch(key) {
                     case ' ': // Spacebar = GO
                         event.preventDefault();
                         if (!helpMode) {
@@ -2548,77 +2095,72 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         break;
                 }
                 
-                
-                // Handle number key hotkeys (1-9)  
-if (keyCode >= 'Digit1' && keyCode <= 'Digit9') {
-    const digitKey = keyCode.replace('Digit', ''); // Extract just the number
-    console.log('Number key pressed:', digitKey, 'Ctrl:', ctrlKey, 'Shift:', shiftKey, 'EditMode:', editMode, 'HelpMode:', helpMode);
-    if (!helpMode) {
-        if (ctrlKey && shiftKey && editMode) {
-            // Assign hotkey in Edit Mode
-            event.preventDefault();
-            console.log('Assigning hotkey for key:', digitKey);
-            assignHotkey(digitKey);
-        } else if (!ctrlKey && !shiftKey && !editMode) {
-            // Execute hotkey in Show Mode (bare key press)
-            event.preventDefault();
-            executeHotkey(digitKey);
-        }
-    }
-}
+                // Handle F-key hotkeys (F2-F10)
+                if (keyCode.startsWith('F') && keyCode !== 'F1' && keyCode !== 'F11' && keyCode !== 'F12') {
+                    event.preventDefault();
+                    if (!helpMode) {
+                        if (shiftKey && editMode) {
+                            // Assign hotkey
+                            assignHotkey(keyCode);
+                        } else {
+                            // Execute hotkey
+                            executeHotkey(keyCode);
+                        }
+                    }
+                }
             });
             
             console.log('Keyboard shortcuts initialized');
         }
 
         // Hotkey Management
-function assignHotkey(digitKey) {
-    if (project.cues.length === 0) {
-        alert('No cues available to assign hotkeys to.');
-        return;
-    }
-    
-    const cueNumber = prompt(`Assign key "${digitKey}" to which cue number?\n\nPress Ctrl+Shift+${digitKey} in Edit Mode to assign\nPress ${digitKey} in Show Mode to play\n\nAvailable cues: ${project.cues.map(c => c.cueNumber).join(', ')}\n\nLeave blank to remove assignment.`);
-    
-    if (cueNumber === null) return; // Cancelled
-    
-    if (cueNumber === '') {
-        // Remove assignment
-        hotkeyAssignments.delete(digitKey);
-        showTemporaryFeedback(`Key ${digitKey} unassigned`);
-        console.log(`Removed hotkey assignment for key ${digitKey}`);
-    } else {
-        // Verify cue exists
-        const cue = project.cues.find(c => c.cueNumber === cueNumber);
-        if (cue) {
-            hotkeyAssignments.set(digitKey, cueNumber);
-            showTemporaryFeedback(`Key ${digitKey} → Cue ${cueNumber}`);
-            console.log(`Assigned key ${digitKey} to cue ${cueNumber}`);
-        } else {
-            alert(`Cue "${cueNumber}" not found.`);
-        }
-    }
-}
-
-function executeHotkey(digitKey) {
-    const cueNumber = hotkeyAssignments.get(digitKey);
-    if (cueNumber) {
-        const cue = project.cues.find(c => c.cueNumber === cueNumber);
-        if (cue) {
-            if (cue.type === 'fade') {
-                executeFadeCue(cueNumber);
-            } else {
-                playCue(cueNumber);
+        function assignHotkey(keyCode) {
+            if (project.cues.length === 0) {
+                alert('No cues available to assign hotkeys to.');
+                return;
             }
-            showTemporaryFeedback(`Key ${digitKey} → Cue ${cueNumber} ▶️`);
-            console.log(`Hotkey ${digitKey} triggered cue ${cueNumber}`);
-        } else {
-            showTemporaryFeedback(`Key ${digitKey} cue not found`);
+            
+            const cueNumber = prompt(`Assign ${keyCode} to which cue number?\n\nAvailable cues: ${project.cues.map(c => c.cueNumber).join(', ')}\n\nLeave blank to remove assignment.`);
+            
+            if (cueNumber === null) return; // Cancelled
+            
+            if (cueNumber === '') {
+                // Remove assignment
+                hotkeyAssignments.delete(keyCode);
+                showTemporaryFeedback(`${keyCode} unassigned`);
+                console.log(`Removed hotkey assignment for ${keyCode}`);
+            } else {
+                // Verify cue exists
+                const cue = project.cues.find(c => c.cueNumber === cueNumber);
+                if (cue) {
+                    hotkeyAssignments.set(keyCode, cueNumber);
+                    showTemporaryFeedback(`${keyCode} → Cue ${cueNumber}`);
+                    console.log(`Assigned ${keyCode} to cue ${cueNumber}`);
+                } else {
+                    alert(`Cue "${cueNumber}" not found.`);
+                }
+            }
         }
-    } else {
-        showTemporaryFeedback(`Key ${digitKey} not assigned`);
-    }
-}
+
+        function executeHotkey(keyCode) {
+            const cueNumber = hotkeyAssignments.get(keyCode);
+            if (cueNumber) {
+                const cue = project.cues.find(c => c.cueNumber === cueNumber);
+                if (cue) {
+                    if (cue.type === 'fade') {
+                        executeFadeCue(cueNumber);
+                    } else {
+                        playCue(cueNumber);
+                    }
+                    showTemporaryFeedback(`${keyCode} → Cue ${cueNumber} ▶️`);
+                    console.log(`Hotkey ${keyCode} triggered cue ${cueNumber}`);
+                } else {
+                    showTemporaryFeedback(`${keyCode} cue not found`);
+                }
+            } else {
+                showTemporaryFeedback(`${keyCode} not assigned`);
+            }
+        }
 
         // Navigation helpers
         function navigateCue(direction) {
@@ -2635,7 +2177,6 @@ function executeHotkey(digitKey) {
                 }
             }
         }
-
         function playCurrentCue() {
             if (currentCueIndex < project.cues.length) {
                 const cue = project.cues[currentCueIndex];
@@ -2938,7 +2479,19 @@ function executeHotkey(digitKey) {
             updateUI();
             setupKeyboardShortcuts();
             startProgressTimer();
+            updateTutorialButton();
             
+            // AUTO-START TUTORIAL FOR NEW USERS (ADD THIS)
+            setTimeout(() => {
+                if (localStorage.getItem('tcp_tutorial_completed') !== 'true' && 
+                    (!project || project.cues.length === 0)) {
+                    if (confirm('New to Theatre Cue Player? Take a 2-minute tour?')) {
+                        startTutorial();
+                    } else {
+                        localStorage.setItem('tcp_tutorial_completed', 'true');
+                    }
+                }
+            }, 1000);
         });
 
         // New separated loading system functions
@@ -2947,6 +2500,7 @@ function executeHotkey(digitKey) {
             input.dataset.mode = 'audio-only'; // Set mode for event handler
             input.click();
             console.log('Load audio folder dialog opened');
+            onAudioFolderStart();
         }
 
         function loadCueFile() {
@@ -3024,7 +2578,7 @@ function executeHotkey(digitKey) {
                     const fileHandle = await window.showSaveFilePicker({
                         suggestedName: `${projectName}.json`,
                         types: [{
-                            description: 'Theatre Cue Player Tutorial files',
+                            description: 'Theatre Cue Player files',
                             accept: { 'application/json': ['.json'] }
                         }]
                     });
@@ -3266,7 +2820,7 @@ function executeHotkey(digitKey) {
             const afterCue = project.cues[insertAfterIndex];
             const afterNumber = parseFloat(afterCue.cueNumber);
             
-            // If it's not a valid number, fall back to end insertion
+            // If the cue number isn't a valid number, fall back to end insertion
             if (isNaN(afterNumber)) {
                 return getSmartCueNumber(-1);
             }
@@ -3332,6 +2886,17 @@ function executeHotkey(digitKey) {
                     return firstDecimal.toFixed(1);
                 }
                 
+                // Check if X.1 exists - if so, use tight insertion (X.01, X.02, etc.)
+                if (cueNumberExists((baseNumber + 0.1).toFixed(1))) {
+                    for (let i = 1; i <= 99; i++) {
+                        const tightDecimal = baseNumber + (i / 100);
+                        const numberStr = tightDecimal.toFixed(2);
+                        if (!cueNumberExists(numberStr)) {
+                            return numberStr;
+                        }
+                    }
+                }
+                
                 // Then try X.2, X.3, X.4, etc.
                 for (let i = 2; i <= 9; i++) {
                     const decimalNumber = baseNumber + (i / 10);
@@ -3383,18 +2948,20 @@ function executeHotkey(digitKey) {
             };
             
             // Insert after selected cue or at end
-            const insertIndex = selectedCueIndex === -1 ? project.cues.length : selectedCueIndex + 1;
-            project.cues.splice(insertIndex, 0, newCue);
-            
-            // Validate the new cue
-            validateAllCues();
-            updateUI();
+                const insertIndex = selectedCueIndex === -1 ? project.cues.length : selectedCueIndex + 1;
+                project.cues.splice(insertIndex, 0, newCue);
+
+                // Update selectedCueIndex to point to the newly inserted cue
+                selectedCueIndex = insertIndex;
+
+                // Validate the new cue
+                validateAllCues();
+                updateUI();
         }
 
         function addFadeCue() {
             // Save undo state before making changes
             saveUndoState('Add fade cue');
-            
             
             // Get smart cue number based on selection
             const newCueNumber = getSmartCueNumber(selectedCueIndex);
@@ -3448,12 +3015,15 @@ function executeHotkey(digitKey) {
             };
             
             // Insert after selected cue or at end
-            const insertIndex = selectedCueIndex === -1 ? project.cues.length : selectedCueIndex + 1;
-            project.cues.splice(insertIndex, 0, newCue);
-            
-            // Validate the new cue
-            validateAllCues();
-            updateUI();
+                const insertIndex = selectedCueIndex === -1 ? project.cues.length : selectedCueIndex + 1;
+                project.cues.splice(insertIndex, 0, newCue);
+
+                // Update selectedCueIndex to point to the newly inserted cue
+                selectedCueIndex = insertIndex;
+
+                // Validate the new cue
+                validateAllCues();
+                updateUI();
         }
 
         function formatTime(seconds) {
@@ -3961,17 +3531,6 @@ function executeHotkey(digitKey) {
             document.getElementById('sidebar').style.display = 'block';
             updateCueJumpDisplay();
             
-            // Notify tutorial system that show is loaded
-            if (tutorialManager && tutorialManager.isActive) {
-                console.log('Show loaded - checking tutorial step');
-                setTimeout(() => {
-                    if (tutorialManager.checkSuccessCondition(tutorialManager.steps[tutorialManager.currentStep])) {
-                        console.log('Show loaded success condition met, advancing tutorial');
-                        tutorialManager.advanceToNextStep();
-                    }
-                }, 500);
-            }
-            
             // Convert landing page edit button to cue page edit button
             const landingEditBtn = document.querySelector('button[onclick="editModeFromLanding()"]');
             if (landingEditBtn) {
@@ -4043,7 +3602,8 @@ function executeHotkey(digitKey) {
                 playingCuesInfo.innerHTML = '<p><em>No cues playing</em></p>';
             } else {
                 const playingList = Array.from(playingCues.keys()).map(cueNumber => {
-                    const cue = project.cues.find(c => c.cueNumber === cueNumber);
+                    const baseCueNumber = cueNumber.split('_')[0]; // Extract base cue number from instance ID
+                    const cue = project.cues.find(c => c.cueNumber === baseCueNumber);
                     const audioData = playingCues.get(cueNumber);
                     const isFading = audioData && audioData.isFading;
                     
@@ -4077,7 +3637,7 @@ function executeHotkey(digitKey) {
                     
                     return `<div style="padding: 0.5rem; background: #2a2a2a; border-radius: 4px; margin-bottom: 0.5rem; border-left: 3px solid ${isFading ? '#ffc107' : '#28a745'};">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
-                            <strong>${cueNumber}:</strong> ${cue ? cue.label : 'Unknown'}
+                            <strong>${baseCueNumber}:</strong> ${cue ? cue.label : 'Unknown'}
                             ${isFading ? ' <em style="color: #ffc107;">(Fading)</em>' : ''}
                         </div>
                         ${progressInfo}
@@ -4167,32 +3727,25 @@ function executeHotkey(digitKey) {
             updateUI();
         }
 
-        function toggleAutoFollow(cueNumber) {
-            console.log('toggleAutoFollow called for cue:', cueNumber);
-            if (editMode) {
-                const cue = project.cues.find(c => c.cueNumber === cueNumber);
-                if (cue) {
-                    cue.autoFollow = !cue.autoFollow;
-                    console.log('Set autoFollow to:', cue.autoFollow);
+        function handleCheckboxChange(cueNumber, property, checked) {
+            console.log(`Changing ${property} for cue ${cueNumber} to ${checked}`);
+            
+            const cue = project.cues.find(c => c.cueNumber === cueNumber);
+            if (cue) {
+                cue[property] = checked;
+                console.log(`Successfully set ${property} to ${checked} for cue ${cueNumber}`);
+                
+                // Delay UI update to ensure checkbox state is processed
+                setTimeout(() => {
                     updateUI();
-                }
+                }, 10);
+            } else {
+                console.error(`Could not find cue ${cueNumber}`);
             }
-        }
-
-        function toggleAutoContinue(cueNumber) {
-            console.log('toggleAutoContinue called for cue:', cueNumber);
-            if (editMode) {
-                const cue = project.cues.find(c => c.cueNumber === cueNumber);
-                if (cue) {
-                    cue.autoContinue = !cue.autoContinue;
-                    console.log('Set autoContinue to:', cue.autoContinue);
-                    updateUI();
-                }
-            }
-        }
+}
 
         function updateUI() {
-            console.log('updateUI called, editMode:', editMode, 'tutorialActive:', tutorialActive);
+            console.log('updateUI called');
             
             if (!project || project.cues.length === 0) {
                 document.getElementById('cueList').innerHTML = '<p>No cues loaded. Add some cues to get started.</p>';
@@ -4223,7 +3776,6 @@ function executeHotkey(digitKey) {
                 </thead>
                 <tbody>`;
 
-            console.log('Building cue table, editMode at render time:', editMode);
             for (let i = 0; i < project.cues.length; i++) {
                 const cue = project.cues[i];
                 const isCurrentCue = i === currentCueIndex;
@@ -4276,20 +3828,21 @@ function executeHotkey(digitKey) {
                 }
 
                 html += `
-                <tr class="${rowClasses.join(' ')}" onclick="selectCueForInsertion(${i})" style="cursor: pointer;">
+                <tr class="${rowClasses.join(' ')}" onclick="if(event.target.type !== 'checkbox' && event.target.tagName !== 'BUTTON') selectCueForInsertion(${i})" style="cursor: pointer;">
                     <td onclick="${editMode ? `editField('cueNumber', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.cueNumber}</td>
                     <td onclick="${editMode ? `editField('label', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${displayLabel}</td>
                     <td class="${targetCellClass}" onclick="${editMode ? `selectTarget('${cue.cueNumber}'); event.stopPropagation();` : ''}">${targetCellContent}</td>
-                    <td><input type="checkbox" ${cue.autoContinue ? 'checked' : ''} ${editMode ? `onclick="toggleAutoContinue('${cue.cueNumber}')"` : 'disabled'} data-cue-number="${cue.cueNumber}" data-edit-mode-at-render="${editMode}"></td>
+                    <td><input type="checkbox" ${cue.autoContinue ? 'checked' : ''} ${editMode ? `onchange="event.stopPropagation(); handleCheckboxChange('${cue.cueNumber}', 'autoContinue', this.checked);"` : 'disabled'}></td>
                     <td onclick="${editMode ? `editField('delay', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${formatSecondsFromMs(cue.delay)}</td>
                     <td onclick="${editMode && cue.type === 'audio' ? `editField('startTime', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.type === 'audio' ? formatTime(cue.startTime) : '-'}</td>
-                    <td onclick="${editMode && cue.type === 'audio' ? `editField('fadeInTime', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.type === 'audio' ? formatSecondsFromMs(cue.fadeInTime) : '-'}</td>
+                    <td onclick="${editMode && cue.type === 'audio' ? `editField('fadeInTime', '${cue.cueNumber}')` : ''}">${cue.type === 'audio' ? formatSecondsFromMs(cue.fadeInTime) : '-'}</td>
                     <td onclick="${editMode ? `editField('volume', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${(() => {
                         const vol = cue.volume !== undefined ? cue.volume : 100;
+                        console.log('Display volume for cue', cue.cueNumber + ':', vol, 'from cue.volume:', cue.volume);
                         return vol;
                     })()}%</td>
                     <td onclick="${editMode ? `editField('pan', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${getPanDisplay(cue.pan || 0)}</td>
-                    <td onclick="${editMode && cue.type === 'fade' ? `editField('endTime', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.type === 'fade' ? formatTime(cue.endTime) + ' fade' : (() => {
+                    <td onclick="${editMode && cue.type === 'fade' ? `editField('endTime', '${cue.cueNumber}')` : ''}">${cue.type === 'fade' ? formatTime(cue.endTime) + ' fade' : (() => {
                         const duration = calculateCueDuration(cue);
                         const loopCount = cue.loop || 1;
                         if (loopCount >= 999) {
@@ -4297,14 +3850,14 @@ function executeHotkey(digitKey) {
                         }
                         return formatDuration(duration);
                     })()}</td>
-                    <td onclick="${editMode && cue.type === 'audio' ? `editField('endTime', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.type === 'audio' ? formatTime(cue.endTime) : '-'}</td>
-                    <td onclick="${editMode && cue.type === 'audio' ? `editField('fadeOutTime', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.type === 'audio' ? formatSecondsFromMs(cue.fadeOutTime) : '-'}</td>
+                    <td onclick="${editMode && cue.type === 'audio' ? `editField('endTime', '${cue.cueNumber}')` : ''}">${cue.type === 'audio' ? formatTime(cue.endTime) : '-'}</td>
+                    <td onclick="${editMode && cue.type === 'audio' ? `editField('fadeOutTime', '${cue.cueNumber}')` : ''}">${cue.type === 'audio' ? formatSecondsFromMs(cue.fadeOutTime) : '-'}</td>
                     <td onclick="${editMode ? `editField('loop', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${(() => {
                         const loopCount = cue.loop || 1;
                         if (loopCount >= 999) return '∞x';
                         return loopCount + 'x';
                     })()}</td>
-                    <td><input type="checkbox" ${cue.autoFollow ? 'checked' : ''} ${editMode ? `onclick="toggleAutoFollow('${cue.cueNumber}')"` : 'disabled'} data-cue-number="${cue.cueNumber}" data-edit-mode-at-render="${editMode}"></td>
+                    <td><input type="checkbox" ${cue.autoFollow ? 'checked' : ''} ${editMode ? `onchange="event.stopPropagation(); handleCheckboxChange('${cue.cueNumber}', 'autoFollow', this.checked);"` : 'disabled'}></td>
                     <td>
                         <button onclick="playCue('${cue.cueNumber}')" class="btn btn-success" style="padding: 0.2rem 0.4rem; margin-right: 0.2rem;">▶</button>
                         <button onclick="fadeCue('${cue.cueNumber}')" class="btn btn-warning" style="padding: 0.2rem 0.4rem; margin-right: 0.2rem;"${cue.type === 'fade' ? ' disabled' : ''}>⧵</button>
@@ -4319,23 +3872,15 @@ function executeHotkey(digitKey) {
             </table>`;
 
             document.getElementById('cueList').innerHTML = html;
-            
-            // Force-enable checkboxes in edit mode
-            if (editMode) {
-                console.log('Force-enabling checkboxes because editMode is true');
-                document.querySelectorAll('#cueList input[type="checkbox"]').forEach((checkbox, index) => {
-                    checkbox.disabled = false;
-                    console.log('Enabled checkbox index', index, ':', checkbox);
-                });
-            }
-            
             updateProjectStatus();
             updateNextCueDisplay();
+            updateTutorialButton(); 
         }
 
         function selectCueForInsertion(index) {
             selectedCueIndex = index;
             updateUI(); // Refresh to show selection highlighting
+            console.log('Selected cue index for insertion:', index);
         }
 
         function selectFile(cueNumber) {
@@ -4516,30 +4061,31 @@ function executeHotkey(digitKey) {
             updateUI();
         }
 
-        // COMPLETELY NEW STOP FUNCTIONS - CLEAN SLATE
         function stopSingleCue(cueNumber) {
             console.log('stopSingleCue called for cue:', cueNumber);
             
-            if (!playingCues.has(cueNumber)) {
-                console.log('Cue not playing:', cueNumber);
+            const instances = getInstancesByCueNumber(cueNumber);
+            
+            if (instances.length === 0) {
+                console.log('No instances playing for cue:', cueNumber);
                 return;
             }
             
-            const audioData = playingCues.get(cueNumber);
-            console.log('Got audioData:', audioData);
+            console.log(`Stopping ${instances.length} instance(s) of cue:`, cueNumber);
             
-            if (audioData && audioData.source && typeof audioData.source.stop === 'function') {
-                try {
-                    audioData.source.stop();
-                    console.log('Successfully stopped source for cue:', cueNumber);
-                } catch (error) {
-                    console.error('Error stopping source:', error);
+            instances.forEach(instance => {
+                const audioData = instance.data;
+                if (audioData && audioData.source && typeof audioData.source.stop === 'function') {
+                    try {
+                        audioData.source.stop();
+                        console.log('Successfully stopped instance:', instance.key);
+                    } catch (error) {
+                        console.error('Error stopping instance:', error);
+                    }
                 }
-            } else {
-                console.error('Invalid audioData structure:', audioData);
-            }
+                playingCues.delete(instance.key);
+            });
             
-            playingCues.delete(cueNumber);
             updateUI();
         }
 
@@ -4560,12 +4106,15 @@ function executeHotkey(digitKey) {
             // Show pending timeouts before clearing
             showPendingTimeouts();
             
-            const cueNumbers = Array.from(playingCues.keys());
-            console.log('Cues to stop:', cueNumbers);
-            
-            for (let cueNumber of cueNumbers) {
-                stopSingleCue(cueNumber);
-            }
+            // Get unique base cue numbers from instance IDs
+                const instanceKeys = Array.from(playingCues.keys());
+                const uniqueCueNumbers = [...new Set(instanceKeys.map(key => key.split('_')[0]))];
+                console.log('Instance keys:', instanceKeys);
+                console.log('Unique cue numbers to stop:', uniqueCueNumbers);
+
+                for (let cueNumber of uniqueCueNumbers) {
+                    stopSingleCue(cueNumber);
+}
             
             // Clear all pending auto-follow and auto-continue timeouts
             clearAllPendingTimeouts();
@@ -4652,13 +4201,9 @@ function executeHotkey(digitKey) {
                 return;
             }
 
-            // CRITICAL FIX: Prevent multiple instances of the same cue
-            if (playingCues.has(cueNumber)) {
-                console.log('Cue already playing, stopping existing instance first:', cueNumber);
-                stopSingleCue(cueNumber);
-                // Small delay to ensure cleanup is complete
-                await new Promise(resolve => setTimeout(resolve, 50));
-            }
+           // Allow multiple instances by using unique instance IDs
+            const instanceId = `${cueNumber}_${Date.now()}`;
+            console.log('Creating new instance:', instanceId);
 
             // Handle different cue types
             if (cue.type === 'fade') {
@@ -4694,10 +4239,6 @@ function executeHotkey(digitKey) {
                         console.log('Source created:', !!source);
                         console.log('Source has stop method:', typeof source.stop);
                         
-                        if (!cue.audioBuffer) {
-                            console.warn('No audio buffer available for cue:', cue.cueNumber);
-                            throw new Error('No audio file loaded for this cue');
-                        }
                         source.buffer = cue.audioBuffer;
                         source.connect(gainNode);
                         gainNode.connect(panNode);
@@ -4729,7 +4270,7 @@ function executeHotkey(digitKey) {
                         };
                         
                         console.log('Storing audioData in playingCues. Source stop type:', typeof audioData.source.stop);
-                        playingCues.set(cueNumber, audioData);
+                        playingCues.set(instanceId, audioData);
                         console.log('playingCues size after adding:', playingCues.size);
 
                         source.onended = () => {
@@ -4781,7 +4322,7 @@ function executeHotkey(digitKey) {
                             
                             // All finite loops completed - do cleanup and auto-follow
                             console.log(`All loops completed for cue ${cueNumber}`);
-                            playingCues.delete(cueNumber);
+                            playingCues.delete(instanceId);
                             
                             // Handle Auto Follow - play next cue after all loops complete
                             if (cue.autoFollow) {
@@ -4888,34 +4429,14 @@ function executeHotkey(digitKey) {
 
                     } catch (error) {
                         console.error('Error starting cue:', error);
-                        let userMessage = `Error playing cue ${cueNumber}: ${error.message}`;
-                        
-                        // Provide more user-friendly messages for common errors
-                        if (error.message.includes("Failed to set the 'buffer' property") || 
-                            error.message.includes("Failed to convert value to 'AudioBuffer'")) {
-                            userMessage = `Error playing cue ${cueNumber}: The audio file is missing or corrupted. Please check that the target file exists and is a valid audio file.`;
-                        } else if (error.message.includes("No audio buffer available")) {
-                            userMessage = `Error playing cue ${cueNumber}: The audio file could not be loaded. Please verify the file path and format.`;
-                        }
-                        
-                        alert(userMessage);
+                        alert(`Error playing cue ${cueNumber}: ${error.message}`);
                     }
                 }, delayTime * 1000);
                 addPendingTimeout('cueDelay', cueDelayTimeoutId);
 
             } catch (error) {
                 console.error('Error in playCue:', error);
-                let userMessage = `Error playing cue ${cueNumber}: ${error.message}`;
-                
-                // Provide more user-friendly messages for common errors
-                if (error.message.includes("Failed to set the 'buffer' property") || 
-                    error.message.includes("Failed to convert value to 'AudioBuffer'")) {
-                    userMessage = `Error playing cue ${cueNumber}: The audio file is missing or corrupted. Please check that the target file exists and is a valid audio file.`;
-                } else if (error.message.includes("No audio buffer available")) {
-                    userMessage = `Error playing cue ${cueNumber}: The audio file could not be loaded. Please verify the file path and format.`;
-                }
-                
-                alert(userMessage);
+                alert(`Error playing cue ${cueNumber}: ${error.message}`);
             }
             
             console.log('=== playCue END ===');
@@ -4940,7 +4461,8 @@ function executeHotkey(digitKey) {
                 return;
             }
 
-            if (!playingCues.has(fadeCue.target)) {
+            const targetInstances = getInstancesByCueNumber(fadeCue.target);
+            if (targetInstances.length === 0) {
                 console.error(`Target cue ${fadeCue.target} is not currently playing`);
                 alert(`Target cue ${fadeCue.target} is not currently playing`);
                 return;
@@ -5016,17 +4538,18 @@ function executeHotkey(digitKey) {
                 // Schedule completion tasks
                 const fadeCompletionTimeoutId = setTimeout(() => {
                     removePendingTimeout('fadeCompletion', fadeCompletionTimeoutId);
-                    if (playingCues.has(fadeCue.target)) {
-                        const audioData = playingCues.get(fadeCue.target);
+                   const targetInstances = getInstancesByCueNumber(fadeCue.target);
+                    targetInstances.forEach(instance => {
+                        const audioData = instance.data;
                         if (audioData) {
                             audioData.isFading = false;
                         }
-                        
-                        // Auto-stop if faded to 0
-                        if (fadeCue.volume === 0 || fadeCue.volume === '0') {
-                            console.log('Fade reached 0%, auto-stopping cue:', fadeCue.target);
-                            stopSingleCue(fadeCue.target);
-                        }
+                    });
+
+                    // Auto-stop if faded to 0
+                    if (fadeCue.volume === 0 || fadeCue.volume === '0') {
+                        console.log('Fade reached 0%, auto-stopping cue:', fadeCue.target);
+                        stopSingleCue(fadeCue.target);
                     }
                     
                     // Handle auto follow for fade cue (after fade completes)
@@ -5097,6 +4620,7 @@ function executeHotkey(digitKey) {
         }
 
         function goNext() {
+            onGOPressed();
             console.log('=== GO BUTTON PRESSED ===');
             console.log('Current index:', currentCueIndex);
             console.log('Total cues:', project.cues.length);
@@ -5141,31 +4665,31 @@ function executeHotkey(digitKey) {
         }
 
         function jumpToCue() {
-    const input = document.getElementById('cueJumpInput');
-    const targetCueNumber = input.value.trim();
-    
-    if (!targetCueNumber) return;
-    
-    const cueIndex = project.cues.findIndex(c => c.cueNumber === targetCueNumber);
-    if (cueIndex !== -1) {
-        currentCueIndex = cueIndex;
-        selectedCueIndex = cueIndex; // Also update selectedCueIndex for cue insertion
-        updateCueJumpDisplay();
-        updateUI();
-        console.log('Jumped to cue:', targetCueNumber, 'at index:', cueIndex);
-        
-        // ENHANCEMENT: Check if jumped-to cue has auto-continue and user wants to trigger it
-        const jumpedCue = project.cues[cueIndex];
-        if (jumpedCue && jumpedCue.autoContinue) {
-            console.log('Jumped to cue with auto-continue:', targetCueNumber);
-            showTemporaryFeedback(`Jumped to ${targetCueNumber} (has auto-continue)`);
-        } else {
-            showTemporaryFeedback(`Jumped to ${targetCueNumber}`);
+            const input = document.getElementById('cueJumpInput');
+            const targetCueNumber = input.value.trim();
+            
+            if (!targetCueNumber) return;
+            
+            const cueIndex = project.cues.findIndex(c => c.cueNumber === targetCueNumber);
+            if (cueIndex !== -1) {
+                currentCueIndex = cueIndex;
+                selectedCueIndex = cueIndex; // Also update selectedCueIndex for cue insertion
+                updateCueJumpDisplay();
+                updateUI();
+                console.log('Jumped to cue:', targetCueNumber, 'at index:', cueIndex);
+                
+                // ENHANCEMENT: Check if jumped-to cue has auto-continue and user wants to trigger it
+                const jumpedCue = project.cues[cueIndex];
+                if (jumpedCue && jumpedCue.autoContinue) {
+                    console.log('Jumped to cue with auto-continue:', targetCueNumber);
+                    showTemporaryFeedback(`Jumped to ${targetCueNumber} (has auto-continue)`);
+                } else {
+                    showTemporaryFeedback(`Jumped to ${targetCueNumber}`);
+                }
+            } else {
+                alert(`Cue "${targetCueNumber}" not found.`);
+            }
         }
-    } else {
-        alert(`Cue "${targetCueNumber}" not found.`);
-    }
-}
 
         function jumpToFirst() {
             if (project.cues.length > 0) {
@@ -5346,6 +4870,7 @@ projectFiles.set(filePath, file);
             
             // Show success message
             alert(`Audio folder loaded!\n\n${audioFilesLoaded} audio files available.\n\nSupported formats: MP3, WAV, OGG, M4A, AAC, FLAC, WMA`);
+            onAudioFolderComplete(); 
             console.log('=== AUDIO FOLDER LOADING COMPLETE ===');
         });
 
@@ -5432,7 +4957,7 @@ projectFiles.set(filePath, file);
                 // Validate all cues after loading cue file
                 validateAllCues();
                 updateUI();
- 
+                onCueFileLoaded(); 
                 
                 // Show success message
                 const missingFiles = project.cues.filter(c => c.status === 'missing').length;
@@ -5444,7 +4969,7 @@ projectFiles.set(filePath, file);
 
             } catch (error) {
                 console.error('Error loading cue file:', error);
-                alert(`Error loading cue file:\n\n${error.message}\n\nPlease check that this is a valid Theatre Cue Player Tutorial .json file.`);
+                alert(`Error loading cue file:\n\n${error.message}\n\nPlease check that this is a valid Theatre Cue Player .json file.`);
             }
             
             console.log('=== CUE FILE LOADING COMPLETE ===');
@@ -7063,7 +6588,7 @@ projectFiles.set(filePath, file);
         // Hotkey assignment display
         function showHotkeyAssignments() {
             if (hotkeyAssignments.size === 0) {
-                alert('No hotkeys assigned yet.\n\nTo assign:\n1. Enable Edit Mode\n2. Hold Crtl + Shift + press 1-9\n3. Enter cue number to assign');
+                alert('No hotkeys assigned yet.\n\nTo assign:\n1. Enable Edit Mode\n2. Hold Shift + press F2-F10\n3. Enter cue number to assign');
                 return;
             }
             
@@ -7113,680 +6638,35 @@ projectFiles.set(filePath, file);
             document.getElementById('waveformHelpTitle').textContent = title;
             document.getElementById('waveformHelpText').textContent = text;
         }
-        
-        // ===== TUTORIAL SYSTEM FUNCTIONS =====
-        class TutorialManager {
-            constructor(steps) {
-                console.log('TutorialManager constructor called with', steps.length, 'steps');
-                this.steps = steps;
-                this.currentStep = 0;
-                this.isActive = false;
-                this.overlay = document.getElementById('tutorialOverlay');
-                this.content = document.getElementById('tutorialContent');
-                this.pointer = document.getElementById('tutorialPointer');
-                
-                console.log('Tutorial elements found:', {
-                    overlay: !!this.overlay,
-                    content: !!this.content,
-                    pointer: !!this.pointer
-                });
-                
-                this.initializeDragging();
-            }
-            
-            initializeDragging() {
-                if (!this.content) {
-                    console.warn('Tutorial content element not found, skipping drag initialization');
-                    return;
-                }
-                const header = this.content.querySelector('.tutorial-header');
-                if (!header) {
-                    console.warn('Tutorial header not found, skipping drag initialization');
-                    return;
-                }
-                
-                let isDragging = false;
-                let startX, startY, startLeft, startTop;
-                
-                const handleStart = (e) => {
-                    isDragging = true;
-                    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-                    
-                    startX = clientX;
-                    startY = clientY;
-                    startLeft = parseInt(window.getComputedStyle(this.content).left, 10) || 0;
-                    startTop = parseInt(window.getComputedStyle(this.content).top, 10) || 0;
-                    
-                    e.preventDefault();
-                };
-                
-                const handleMove = (e) => {
-                    if (!isDragging) return;
-                    
-                    const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-                    
-                    const deltaX = clientX - startX;
-                    const deltaY = clientY - startY;
-                    
-                    let newLeft = startLeft + deltaX;
-                    let newTop = startTop + deltaY;
-                    
-                    const rect = this.content.getBoundingClientRect();
-                    const viewportWidth = window.innerWidth;
-                    const viewportHeight = window.innerHeight;
-                    
-                    // Allow tutorial window to be moved anywhere, including off-screen
-                    // Only constrain to keep at least 50px of window visible for accessibility
-                    newLeft = Math.max(-rect.width + 50, Math.min(newLeft, viewportWidth - 50));
-                    newTop = Math.max(-rect.height + 50, Math.min(newTop, viewportHeight - 50));
-                    
-                    this.content.style.left = newLeft + 'px';
-                    this.content.style.top = newTop + 'px';
-                    
-                    e.preventDefault();
-                };
-                
-                const handleEnd = () => {
-                    isDragging = false;
-                };
-                
-                header.addEventListener('mousedown', handleStart);
-                document.addEventListener('mousemove', handleMove);
-                document.addEventListener('mouseup', handleEnd);
-                
-                header.addEventListener('touchstart', handleStart, { passive: false });
-                document.addEventListener('touchmove', handleMove, { passive: false });
-                document.addEventListener('touchend', handleEnd);
-            }
-
-            start() {
-                this.isActive = true;
-                tutorialActive = true;
-                this.currentStep = 0;
-                this.showStep(0);
-                console.log('Tutorial started');
-            }
-
-            showStep(stepIndex) {
-                if (stepIndex >= this.steps.length) {
-                    this.completeTutorial();
-                    return;
-                }
-                const step = this.steps[stepIndex];
-                this.currentStep = stepIndex;
-                
-                document.getElementById('tutorialStepIndicator').textContent = `Step ${stepIndex + 1} of ${this.steps.length}`;
-                document.getElementById('tutorialTitle').textContent = step.title;
-                document.getElementById('tutorialText').innerHTML = step.overlayText;
-                
-                this.positionOverlay(step);
-                this.setupUserActionHandler(step);
-                
-                // Handle special overlay modes
-                if (step.stepNumber === 6) {
-                    this.overlay.style.display = 'block';
-                    this.overlay.style.background = 'transparent';
-                    this.overlay.style.pointerEvents = 'none';
-                    document.querySelector('.tutorial-content').style.pointerEvents = 'auto';
-                } else if (step.stepNumber >= 7 && step.stepNumber <= 10) {
-                    this.overlay.style.display = 'block';
-                    this.overlay.style.background = 'transparent';
-                    this.overlay.style.pointerEvents = 'none';
-                    document.querySelector('.tutorial-content').style.pointerEvents = 'auto';
-                    this.enableSelectiveButtons();
-                } else if (step.stepNumber === 11 || step.stepNumber === 13 || step.stepNumber === 17) {
-                    this.overlay.classList.add('active');
-                    this.overlay.classList.add('spotlight-mode');
-                } else if (step.stepNumber === 12) {
-                    this.overlay.style.display = 'block';
-                    this.overlay.style.background = 'transparent';
-                    this.overlay.style.pointerEvents = 'none';
-                    document.querySelector('.tutorial-content').style.pointerEvents = 'auto';
-                    this.enableNextOnlyMode();
-                } else if (step.stepNumber === 14 || step.stepNumber === 15 || step.stepNumber === 16 || step.stepNumber === 18 || step.stepNumber === 19 || step.stepNumber === 20 || step.stepNumber === 21 || step.stepNumber === 22 || step.stepNumber === 23 || step.stepNumber === 26 || step.stepNumber === 32) {
-                    this.overlay.style.display = 'block';
-                    this.overlay.style.background = 'transparent';
-                    this.overlay.style.pointerEvents = 'none';
-                    document.querySelector('.tutorial-content').style.pointerEvents = 'auto';
-                } else {
-                    this.overlay.classList.add('active');
-                }
-                
-                console.log('Showing tutorial step:', stepIndex + 1, step.title);
-            }
-
-            positionOverlay(step) {
-                let targetElement = null;
-                
-                if (step.uiTarget !== "Next" && step.position !== "centered") {
-                    const selector = uiTargetSelectors[step.uiTarget];
-                    if (selector && selector !== "next_button") {
-                        const selectors = selector.split(',').map(s => s.trim());
-                        
-                        for (const sel of selectors) {
-                            if (sel.includes('contains')) {
-                                const text = sel.match(/contains\('([^']+)'\)/)?.[1];
-                                if (text) {
-                                    targetElement = Array.from(document.querySelectorAll('button, option')).find(el => 
-                                        el.textContent.includes(text)
-                                    );
-                                }
-                            } else {
-                                targetElement = document.querySelector(sel);
-                            }
-                            
-                            if (targetElement) break;
-                        }
-                    }
-                }
-
-                const content = this.content;
-                const pointer = this.pointer;
-
-                if (step.position === "centered" || step.position === "bottom-center" || step.position === "bottom-left" || !targetElement) {
-                    content.style.position = 'fixed';
-                    content.style.zIndex = '100000';
-                    if (step.position === "bottom-center") {
-                        content.style.left = '50%';
-                        content.style.top = 'auto';
-                        content.style.bottom = '20px';
-                        content.style.transform = 'translateX(-50%)';
-                    } else if (step.position === "bottom-left") {
-                        content.style.left = '20px';
-                        content.style.top = 'auto';
-                        content.style.bottom = '20px';
-                        content.style.transform = 'none';
-                    } else {
-                        // Reset any previous positioning
-                        content.style.bottom = 'auto';
-                        content.style.right = 'auto';
-                        // Set centered positioning with viewport awareness
-                        content.style.left = '50%';
-                        content.style.top = '50vh';
-                        content.style.transform = 'translate(-50%, -50%)';
-                        content.style.maxHeight = '80vh';
-                        content.style.overflow = 'auto';
-                        console.log('Centering tutorial window:', {
-                            left: content.style.left,
-                            top: content.style.top,
-                            transform: content.style.transform,
-                            viewport: { width: window.innerWidth, height: window.innerHeight }
-                        });
-                    }
-                    pointer.style.display = 'none';
-                } else {
-                    const rect = targetElement.getBoundingClientRect();
-                    content.style.position = 'fixed';
-                    pointer.style.display = 'block';
-
-                    switch (step.position) {
-                        case "above":
-                            content.style.top = Math.max(10, rect.top - 300) + 'px';
-                            content.style.left = Math.max(10, rect.left + rect.width/2 - 200) + 'px';
-                            pointer.className = 'tutorial-pointer below';
-                            break;
-                        case "below":
-                            content.style.top = (rect.bottom + 20) + 'px';
-                            // Ensure the window stays within viewport bounds
-                            const leftPos = rect.left + rect.width/2 - 200;
-                            const maxLeft = window.innerWidth - 420; // Assume 400px window width + 20px margin
-                            content.style.left = Math.max(10, Math.min(leftPos, maxLeft)) + 'px';
-                            pointer.className = 'tutorial-pointer above';
-                            break;
-                        case "left":
-                            // For Step 23, position from bottom to prevent cutoff
-                            if (step.stepNumber === 23) {
-                                content.style.bottom = '50px';
-                                content.style.top = 'auto';
-                                content.style.maxHeight = 'calc(100vh - 100px)';
-                                content.style.overflowY = 'auto';
-                            } else {
-                                content.style.top = Math.max(10, rect.top + rect.height/2 - 150) + 'px';
-                                content.style.bottom = 'auto';
-                                content.style.maxHeight = '';
-                                content.style.overflowY = '';
-                            }
-                            content.style.left = Math.max(10, rect.left - 420) + 'px';
-                            pointer.className = 'tutorial-pointer right';
-                            break;
-                        case "right":
-                            content.style.top = Math.max(10, rect.top + rect.height/2 - 150) + 'px';
-                            // Use right positioning to prevent going off screen
-                            const rightPos = window.innerWidth - (rect.right + 20);
-                            if (rightPos < 400) { // If not enough space on right, position from right edge
-                                content.style.right = '20px';
-                                content.style.left = 'auto';
-                            } else {
-                                content.style.left = (rect.right + 20) + 'px';
-                                content.style.right = 'auto';
-                            }
-                            pointer.className = 'tutorial-pointer left';
-                            break;
-                    }
-                    this.highlightElement(targetElement);
-                }
-                // Don't override transform for centered positioning
-                if (step.position !== "centered") {
-                    content.style.transform = 'none';
-                }
-            }
-
-            setupUserActionHandler(step) {
-                const nextBtn = document.getElementById('tutorialNext');
-                const continueBtn = document.getElementById('tutorialContinue');
-                const backBtn = document.getElementById('tutorialBack');
-                const skipBtn = document.getElementById('tutorialSkipStep');
-                
-                nextBtn.style.display = 'none';
-                continueBtn.style.display = 'none';
-                
-                backBtn.style.display = this.currentStep > 0 ? 'inline-block' : 'none';
-                backBtn.onclick = () => this.goBack();
-                
-                skipBtn.onclick = () => this.skipStep();
-
-                if (step.userAction === "click_next") {
-                    nextBtn.style.display = 'inline-block';
-                } else if (step.userAction === "click_element") {
-                    const selector = uiTargetSelectors[step.uiTarget];
-                    if (selector && selector !== "next_button") {
-                        let element = null;
-                        
-                        const selectors = selector.split(',').map(s => s.trim());
-                        
-                        for (const sel of selectors) {
-                            if (sel.includes('contains')) {
-                                const text = sel.match(/contains\('([^']+)'\)/)?.[1];
-                                if (text) {
-                                    element = Array.from(document.querySelectorAll('button, option')).find(el => 
-                                        el.textContent.includes(text)
-                                    );
-                                }
-                            } else {
-                                element = document.querySelector(sel);
-                            }
-                            
-                            if (element) break;
-                        }
-                        
-                        if (element) {
-                            console.log('Setting up click handler for element:', element);
-                            this.waitForElementClick(element, step);
-                        } else {
-                            console.log('Could not find target element for:', step.uiTarget, 'selector:', selector);
-                        }
-                    }
-                } else if (step.userAction === "keyboard_combo") {
-                    this.waitForKeyboardCombo(step);
-                } else if (step.userAction === "wait_for_condition") {
-                    this.waitForCondition(step);
-                }
-            }
-
-            waitForElementClick(element, step) {
-                const handler = (event) => {
-                    console.log('Element clicked for step:', step.stepNumber, step.title);
-                    element.removeEventListener('click', handler);
-                    this.clearHighlights();
-                    
-                    if (step.stepNumber === 5) {
-                        this.overlay.classList.remove('active');
-                        setTimeout(() => {
-                            this.advanceToNextStep();
-                        }, 100);
-                        return;
-                    }
-                    
-                    setTimeout(() => {
-                        console.log('Checking success condition for step:', step.stepNumber);
-                        if (this.checkSuccessCondition(step)) {
-                            console.log('Success condition met, advancing to next step');
-                            this.advanceToNextStep();
-                        } else {
-                            console.log('Success condition not met, not advancing');
-                        }
-                    }, step.stepNumber === 11 ? 1000 : 500); // Longer timeout for edit mode detection
-                };
-                element.addEventListener('click', handler);
-                
-                if (step.stepNumber === 5 || step.stepNumber === 11) {
-                    console.log('Setting up clickable element for step:', step.stepNumber, element);
-                    element.style.pointerEvents = 'auto';
-                    element.style.position = 'relative';
-                    element.style.zIndex = '100001';
-                    
-                    let parent = element.parentElement;
-                    while (parent && parent !== document.body) {
-                        parent.style.pointerEvents = 'auto';
-                        parent = parent.parentElement;
-                    }
-                }
-            }
-
-            
-            waitForCondition(step) {
-                console.log('Setting up condition waiting for step:', step.stepNumber);
-                
-                // Update previousCueCount when STARTING Step 14 to track cue additions
-                if (step.stepNumber === 14 && step.successTrigger === 'cue_added') {
-                    previousCueCount = project.cues.length;
-                    console.log('Step 14 started - set previousCueCount to:', previousCueCount);
-                }
-                
-                // Update previousFadeCount when STARTING Step 26 to track fade cue additions
-                if (step.stepNumber === 26 && step.successTrigger === 'fade_cue_added') {
-                    previousFadeCount = project.cues.filter(c => c.type === 'fade').length;
-                    console.log('Step 26 started - set previousFadeCount to:', previousFadeCount);
-                }
-                
-                // Update previousCueCount when STARTING Step 28 to track cue additions
-                if (step.stepNumber === 28 && step.successTrigger === 'cue_added') {
-                    previousCueCount = project.cues.length;
-                    console.log('Step 28 started - set previousCueCount to:', previousCueCount);
-                }
-                
-                const checkCondition = () => {
-                    if (this.checkSuccessCondition(step)) {
-                        console.log('Condition met for step:', step.stepNumber);
-                        this.advanceToNextStep();
-                    } else {
-                        setTimeout(checkCondition, 200);
-                    }
-                };
-                
-                setTimeout(checkCondition, 100);
-            }
-
-            checkSuccessCondition(step) {
-                if (!step.successTrigger) return true;
-                const trigger = successTriggers[step.successTrigger];
-                console.log('Checking success condition for step:', step.stepNumber, 'trigger:', step.successTrigger);
-                const result = trigger ? trigger() : true;
-                console.log('Success condition result:', result);
-                return result;
-            }
-
-            advanceToNextStep() {
-                this.clearHighlights();
-                
-                const currentStepNumber = this.steps[this.currentStep]?.stepNumber;
-                if (currentStepNumber === 6 || (currentStepNumber >= 7 && currentStepNumber <= 10) || currentStepNumber === 12 || currentStepNumber === 14 || currentStepNumber === 15 || currentStepNumber === 16 || currentStepNumber === 20) {
-                    this.overlay.style.background = '';
-                    this.overlay.style.pointerEvents = '';
-                    this.overlay.classList.remove('active');
-                    
-                    if (currentStepNumber >= 7 && currentStepNumber <= 10) {
-                        this.disableSelectiveButtons();
-                    }
-                    
-                    if (currentStepNumber === 12) {
-                        this.disableNextOnlyMode();
-                    }
-                }
-                
-                this.currentStep++;
-                if (this.currentStep >= this.steps.length) {
-                    this.completeTutorial();
-                } else {
-                    this.showStep(this.currentStep);
-                }
-            }
-
-            highlightElement(element) {
-                this.clearHighlights();
-                if (element) {
-                    const currentStep = this.steps[this.currentStep];
-                    if (currentStep && [4, 5, 11, 13].includes(currentStep.stepNumber)) {
-                        element.classList.add('tutorial-highlight-clear');
-                        this.overlay.classList.add('spotlight-mode');
-                        this.createSpotlightEffect(element);
-                    } else {
-                        element.classList.add('tutorial-highlight');
-                        this.overlay.classList.remove('spotlight-mode');
-                    }
-                }
-            }
-
-            createSpotlightEffect(element) {
-                const rect = element.getBoundingClientRect();
-                const padding = 10;
-                
-                const topDiv = document.createElement('div');
-                topDiv.className = 'tutorial-overlay-parts';
-                topDiv.style.cssText = `position: fixed; top: 0; left: 0; right: 0; height: ${rect.top - padding}px; background: rgba(0,0,0,0.7); z-index: 10000; pointer-events: none;`;
-                
-                const bottomDiv = document.createElement('div');
-                bottomDiv.className = 'tutorial-overlay-parts';
-                bottomDiv.style.cssText = `position: fixed; top: ${rect.bottom + padding}px; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; pointer-events: none;`;
-                
-                const leftDiv = document.createElement('div');
-                leftDiv.className = 'tutorial-overlay-parts';
-                leftDiv.style.cssText = `position: fixed; top: ${rect.top - padding}px; left: 0; width: ${rect.left - padding}px; height: ${rect.height + 2*padding}px; background: rgba(0,0,0,0.7); z-index: 10000; pointer-events: none;`;
-                
-                const rightDiv = document.createElement('div');
-                rightDiv.className = 'tutorial-overlay-parts';
-                rightDiv.style.cssText = `position: fixed; top: ${rect.top - padding}px; left: ${rect.right + padding}px; right: 0; height: ${rect.height + 2*padding}px; background: rgba(0,0,0,0.7); z-index: 10000; pointer-events: none;`;
-                
-                document.body.appendChild(topDiv);
-                document.body.appendChild(bottomDiv);
-                document.body.appendChild(leftDiv);
-                document.body.appendChild(rightDiv);
-            }
-
-            clearHighlights() {
-                document.querySelectorAll('.tutorial-highlight, .tutorial-highlight-clear').forEach(el => {
-                    el.classList.remove('tutorial-highlight', 'tutorial-highlight-clear');
-                });
-                
-                this.overlay.classList.remove('spotlight-mode');
-                document.querySelectorAll('.tutorial-overlay-parts').forEach(el => el.remove());
-            }
-            
-            enableSelectiveButtons() {
-                document.querySelectorAll('button, input, select, textarea, a').forEach(el => {
-                    if (!el.closest('.tutorial-content')) {
-                        el.style.pointerEvents = 'none';
-                        el.style.opacity = '0.5';
-                    }
-                });
-                
-                const allowedButtons = [
-                    'button[onclick*="goNext"]',
-                    'button[onclick*="stopAll"]',
-                    'button[onclick*="fadeAll"]',  
-                    'button[onclick*="jumpToCue"]',
-                    'button[onclick*="jumpToFirst"]',
-                    '#cueJumpInput',
-                    'button[onclick*="editModeFromLanding"]',
-                    'button[onclick*="toggleEditMode"]'
-                ];
-                
-                allowedButtons.forEach(selector => {
-                    const elements = document.querySelectorAll(selector);
-                    elements.forEach(el => {
-                        el.style.pointerEvents = 'auto';
-                        el.style.opacity = '1';
-                        el.style.position = 'relative';
-                        el.style.zIndex = '10001';
-                    });
-                });
-                
-                console.log('Step 7: Enabled selective buttons for show control');
-            }
-            
-            disableSelectiveButtons() {
-                document.querySelectorAll('button, input, select, textarea, a').forEach(el => {
-                    el.style.pointerEvents = '';
-                    el.style.opacity = '';
-                    el.style.position = '';
-                    el.style.zIndex = '';
-                });
-                
-                console.log('Steps 7-10: Disabled selective button restrictions');
-            }
-            
-            enableNextOnlyMode() {
-                document.querySelectorAll('button, input, select, textarea, a').forEach(el => {
-                    if (!el.closest('.tutorial-content')) {
-                        el.style.pointerEvents = 'none';
-                        el.style.opacity = '0.3';
-                    }
-                });
-                
-                console.log('Step 12: Enabled next-only mode');
-            }
-            
-            disableNextOnlyMode() {
-                document.querySelectorAll('button, input, select, textarea, a').forEach(el => {
-                    el.style.pointerEvents = '';
-                    el.style.opacity = '';
-                });
-                
-                console.log('Step 12: Disabled next-only mode restrictions');
-            }
-
-            completeTutorial() {
-                this.isActive = false;
-                tutorialActive = false;
-                this.overlay.classList.remove('active');
-                this.clearHighlights();
-                
-                this.overlay.style.display = 'none';
-                this.content.style.display = 'none';
-                
-                // Create a custom modal instead of alert to support HTML content
-                const modal = document.createElement('div');
-                modal.style.cssText = `
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                    background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
-                    align-items: center; justify-content: center;
-                `;
-                
-                const content = document.createElement('div');
-                content.style.cssText = `
-                    background: white; padding: 30px; border-radius: 10px; 
-                    max-width: 500px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                `;
-                
-                content.innerHTML = `
-                    <h2 style="color: #28a745; margin-bottom: 20px;">🎉 Congratulations!</h2>
-                    <p style="margin-bottom: 15px;">You've completed the Theatre Cue Player tutorial.</p>
-                    <p style="margin-bottom: 20px;">You're now ready to manage audio cues like a pro!</p>
-                    <p style="margin-bottom: 10px;">Please use the most recent project version for class and production.</p>
-                    <p style="margin-bottom: 20px;">For the most recent version, visit: <a href="https://theatre-cue-player.netlify.app/" target="_blank" style="color: #007bff; text-decoration: underline;">https://theatre-cue-player.netlify.app/</a></p>
-                    <button onclick="this.parentElement.parentElement.remove()" style="
-                        background: #007bff; color: white; border: none; padding: 10px 20px; 
-                        border-radius: 5px; cursor: pointer; font-size: 16px;
-                    ">Close</button>
-                `;
-                
-                modal.appendChild(content);
-                document.body.appendChild(modal);
-                
-                localStorage.setItem('tcp_tutorial_completed', 'true');
-                console.log('Tutorial completed');
-            }
-            
-            goBack() {
-                if (this.currentStep > 0) {
-                    this.currentStep--;
-                    this.showStep(this.currentStep);
-                }
-            }
-            
-            skipStep() {
-                this.currentStep++;
-                if (this.currentStep >= this.steps.length) {
-                    this.completeTutorial();
-                } else {
-                    this.showStep(this.currentStep);
-                }
-            }
-
-            skip() {
-                if (confirm('Are you sure you want to skip the tutorial?')) {
-                    this.completeTutorial();
-                }
-            }
-        }
-
-        // Tutorial Control Functions
-        function startTutorial() {
-            console.log('startTutorial called');
-            if (!tutorialManager) {
-                console.log('Creating new TutorialManager');
-                tutorialManager = new TutorialManager(tutorialSteps);
-            }
-            previousCueCount = project.cues ? project.cues.length : 0;
-            console.log('Starting tutorial with', tutorialSteps.length, 'steps');
-            tutorialManager.start();
-        }
-
-        function advanceToNextStep() {
-            if (tutorialManager && tutorialManager.isActive) {
-                tutorialManager.advanceToNextStep();
-            }
-        }
-
-        function skipTutorial() {
-            if (tutorialManager && tutorialManager.isActive) {
-                tutorialManager.skip();
-            }
-        }
-
-        function updateTutorialButton() {
-            const btn = document.getElementById('tutorialButton');
-            if (!btn) return;
-            
-            if (!project || project.cues.length === 0) {
-                btn.textContent = "Tutorial";
-                btn.title = "Learn how to load audio files and cue lists";
-            } else if (editMode) {
-                btn.textContent = "Editor Help";
-                btn.title = "Learn how to edit cues and add new ones";
-            } else {
-                btn.textContent = "Playback Help";
-                btn.title = "Learn how to run cues during a show";
-            }
-        }
-        
-        // Initialize tutorial system after DOM is ready
-        window.addEventListener('load', function() {
-            console.log('Theatre Cue Player Tutorial Version Loaded');
-            console.log('Tutorial steps array length:', tutorialSteps.length);
-            console.log('Tutorial steps validation:', tutorialSteps.every(step => step.stepNumber && step.title));
-            updateTutorialButton();
-            
-            try {
-                tutorialManager = new TutorialManager(tutorialSteps);
-                // Auto-start tutorial for tutorial version (always start - this is tutorial only)
-                startTutorial();
-            } catch (error) {
-                console.error('Tutorial initialization failed:', error);
-            }
-        });
-        
-        // ===== END TUTORIAL SYSTEM FUNCTIONS =====
     </script>
 
+    <!-- ===== TUTORIAL SYSTEM HTML (ADD AFTER HELP WINDOW) ===== -->
+    <div id="tutorialBackdrop" class="tutorial-backdrop"></div>
+    <div id="tutorialWindow" class="tutorial-window">
+        <div class="tutorial-progress" id="tutorialProgress">Step 1 of 6</div>
+        <h4 id="tutorialTitle">Tutorial Step</h4>
+        <p id="tutorialText">Tutorial content goes here.</p>
+        <div class="tutorial-buttons">
+            <button onclick="skipTutorial()" class="btn btn-secondary">Skip Tutorial</button>
+            <button onclick="nextTutorialStep()" id="tutorialNextBtn" class="btn btn-primary">Start Setup</button>
+        </div>
+    </div>
 
     <!-- ===== EMBEDDED MANUAL ===== -->
     <div id="manualModal" class="manual-modal">
         <div class="manual-content">
             <div class="manual-header">
-                <h2>🎭 Theatre Cue Player Tutorial Manual</h2>
+                <h2>🎭 Theatre Cue Player Manual</h2>
                 <button onclick="closeManual()" class="modal-close">&times;</button>
             </div>
             <div class="manual-body">
-                <h1>Theatre Cue Player Tutorial Manual</h1>
+                <h1>Theatre Cue Player Manual</h1>
                 <p><strong>Version 0.8.1 | July 22, 2025</strong></p>
                 <p><em>Educational audio cue management for theatre arts instruction</em><br>
                 <em>Designed by Kevin Patrick, Blinn College-Brenham Campus</em></p>
 
                 <h2>Educational Purpose</h2>
-                <p>Theatre Cue Player Tutorial is designed primarily as a <strong>teaching tool</strong> for audio cue management in educational theatre programs. It provides a Chromebook-friendly, internet-free solution that allows students to learn professional audio cueing concepts without expensive software or complex installations. While capable of live performance use, its educational design prioritizes learning, safety, and accessibility over advanced professional features.</p>
+                <p>Theatre Cue Player is designed primarily as a <strong>teaching tool</strong> for audio cue management in educational theatre programs. It provides a Chromebook-friendly, internet-free solution that allows students to learn professional audio cueing concepts without expensive software or complex installations. While capable of live performance use, its educational design prioritizes learning, safety, and accessibility over advanced professional features.</p>
 
                 <h3>Key Educational Benefits</h3>
                 <ul>
@@ -7802,7 +6682,7 @@ projectFiles.set(filePath, file);
                 <h3>First Time Setup</h3>
                 <ol>
                     <li><strong>Open</strong> theatre-cue-player.html in Chrome, Firefox, or Safari</li>
-                    <li><strong>Click</strong> "HELP" or "Manual" for guidance, OR:</li>
+                    <li><strong>Click</strong> "Tutorial" for guided first-time setup, OR:</li>
                     <li><strong>Click</strong> "Load Audio Folder" → Select folder with your audio files</li>
                     <li><strong>Click</strong> "Load Cue File" → Select existing .json cue file, OR "New Project"</li>
                     <li><strong>Press</strong> spacebar or click "GO" to run your first cue</li>
@@ -7822,7 +6702,7 @@ START
   ↓
 WELCOME SCREEN
   ↓
-First Time? → [YES] → HELP/Manual → Load Files → Test Cue → Ready!
+First Time? → [YES] → Tutorial → Load Files → Test Cue → Ready!
   ↓           [NO]
 Choose Action:
   ├─ Load Audio Folder → Browse Files → Confirm Selection
@@ -7879,6 +6759,7 @@ Edit Mode → Add/Edit Cues → Waveform Editor → Save Project → Show Mode
 
                 <h3>E. Help & Learning System</h3>
                 <ul>
+                    <li><strong>Tutorial Mode</strong>: Guided first-time user setup</li>
                     <li><strong>Context Help</strong>: Click ❓ icons for feature explanations</li>
                     <li><strong>Safe Exploration</strong>: Help mode disables actions for training</li>
                     <li><strong>Educational Language</strong>: Theatre terminology with clear explanations</li>
@@ -7889,7 +6770,7 @@ Edit Mode → Add/Edit Cues → Waveform Editor → Save Project → Show Mode
                 <h3>Classroom Setup</h3>
                 <ol>
                     <li><strong>Prepare Audio Library</strong>: Organize class audio files in shared folder</li>
-                    <li><strong>Student Introduction</strong>: Use Manual for first-time students</li>
+                    <li><strong>Student Introduction</strong>: Use Tutorial mode for first-time students</li>
                     <li><strong>Practice Projects</strong>: Create template cue files for exercises</li>
                     <li><strong>Learning Mode</strong>: Use Help system for safe exploration</li>
                 </ol>
@@ -7968,7 +6849,7 @@ Edit Mode → Add/Edit Cues → Waveform Editor → Save Project → Show Mode
                             <td>Move between editable fields</td>
                         </tr>
                         <tr>
-                            <td><strong>1-9</strong></td>
+                            <td><strong>F2-F10</strong></td>
                             <td>Assignable Hot Keys</td>
                             <td>Show</td>
                             <td>Custom cue shortcuts (set in Edit)</td>
@@ -8008,6 +6889,8 @@ Edit Mode → Add/Edit Cues → Waveform Editor → Save Project → Show Mode
 
                 <h3>Common Student Issues</h3>
 
+                <p><strong>Q: "Tutorial button doesn't appear"</strong><br>
+                <strong>A:</strong> Student has used TCP before - tutorial only shows to new users. Click HELP (F1) for guided exploration instead.</p>
 
                 <p><strong>Q: "I clicked GO twice and messed up the show"</strong><br>
                 <strong>A:</strong> Use individual cue fade/stop buttons to fix running cues. This is why TCP includes these controls that other software lacks.</p>
@@ -8068,33 +6951,11 @@ Edit Mode → Add/Edit Cues → Waveform Editor → Save Project → Show Mode
                 <strong>Educator Network</strong>: <a href="https://forms.gle/JNS7qw5vzpr4eX5BA">Join educator beta testing</a></p>
 
                 <p><strong>Built-in Learning</strong>: Press F1 for context-sensitive help system<br>
+                <strong>New Student Tutorial</strong>: Automatic guided setup for first-time users<br>
                 <strong>Teacher Resources</strong>: Contact for lesson plans and assessment rubrics</p>
 
                 <hr>
                 <p><em>Designed specifically for educational theatre programs using Chromebooks and other standard classroom technology. Professional features included to teach industry-standard concepts while maintaining student-safe operation.</em></p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tutorial Overlay System -->
-    <div id="tutorialOverlay">
-        <div class="tutorial-pointer" id="tutorialPointer"></div>
-        <div class="tutorial-content" id="tutorialContent">
-            <div class="tutorial-header">
-                <span class="tutorial-step" id="tutorialStepIndicator">Step 1 of 38</span>
-                <button class="tutorial-skip" onclick="skipTutorial()">Skip Tutorial</button>
-            </div>
-            <div class="tutorial-title" id="tutorialTitle">Tutorial Step Title</div>
-            <div class="tutorial-text" id="tutorialText">Tutorial step instructions go here.</div>
-            <div class="tutorial-actions">
-                <div class="tutorial-nav-buttons">
-                    <button class="tutorial-back" id="tutorialBack">← Back</button>
-                    <button class="tutorial-skip" id="tutorialSkipStep">Skip Step</button>
-                </div>
-                <div class="tutorial-nav-buttons">
-                    <button class="tutorial-next" id="tutorialNext" onclick="advanceToNextStep()" style="display:none">Next</button>
-                    <button class="tutorial-continue" id="tutorialContinue" style="display:none">Continue</button>
-                </div>
             </div>
         </div>
     </div>

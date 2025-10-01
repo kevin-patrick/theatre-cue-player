@@ -696,31 +696,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 }
 
 /* RENUMBER MODAL STYLES */
-/* Force scrollbars to always be visible */
-.modal-body::-webkit-scrollbar,
-.preview-table::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-}
-
-.modal-body::-webkit-scrollbar-track,
-.preview-table::-webkit-scrollbar-track {
-    background: #1a1a1a;
-    border-radius: 6px;
-}
-
-.modal-body::-webkit-scrollbar-thumb,
-.preview-table::-webkit-scrollbar-thumb {
-    background: #007bff;
-    border-radius: 6px;
-    border: 2px solid #1a1a1a;
-}
-
-.modal-body::-webkit-scrollbar-thumb:hover,
-.preview-table::-webkit-scrollbar-thumb:hover {
-    background: #0056b3;
-}
-
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -732,8 +707,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
 }
 
 .modal-content {
@@ -746,25 +719,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
     overflow-y: auto;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     border: 2px solid #007bff;
-    display: flex; 
-    flex-direction: column; 
-    margin: auto; 
-    resize:both;
-    overflow: hidden;
-    min-width: 400px;
-    min-height: 300px;
-}
-
-/* Add resize handle indicator */
-.modal-content::after {
-    content: '⋰';
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    color: #666;
-    font-size: 16px;
-    pointer-events: none;
-    line-height: 1;
 }
 
 .modal-header {
@@ -804,11 +758,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
 .modal-body {
     padding: 1.5rem;
-    overflow-y: auto; 
-    flex: 1; 
-    -webkit-overflow-scrolling: touch;
-    max-height: none;
-    height: 100%;
 }
 
 .modal-footer {
@@ -874,13 +823,11 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 }
 
 .preview-table {
-    max-height: 400px;
+    max-height: 300px;
     overflow-y: auto;
-    overflow-x: auto;
     border: 1px solid #555;
     border-radius: 4px;
     display: block;
-    -webkit-overlfow-scrolling: touch;
 }
 
 .preview-table table {
