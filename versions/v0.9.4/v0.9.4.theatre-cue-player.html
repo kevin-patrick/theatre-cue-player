@@ -2145,37 +2145,273 @@ class UIController {
     init() {
         this.bindEvents();
         this.setupKeyboardShortcuts();
-
-        // Initial Display Update
-        // this.renderCueTable(); // Don't call this yet, let app.init call it or window.onload
         this.updateHeaderDisplay();
         this.startClock();
+
+        // Remove Tutorial Button (Feature Removal)
+        const tutorialBtn = document.getElementById('tutorialButton');
+        if (tutorialBtn) tutorialBtn.remove();
+
+        this.injectHelpStyles(); // Inject CSS for popover
+
+        // Global click listener to close popover
+        document.addEventListener('click', (e) => {
+            if (!this.helpMode) return;
+            const popover = document.getElementById('helpPopover');
+            // If click is outside popover and outside any help icon
+            if (popover && popover.style.display === 'block') {
+                if (!e.target.closest('#helpPopover') && !e.target.closest('.help-icon')) {
+                    popover.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    injectHelpStyles() {
+        if (document.getElementById('helpPopoverStyles')) return;
+        const style = document.createElement('style');
+        style.id = 'helpPopoverStyles';
+        style.textContent = `
+            .help-popover {
+                position: absolute;
+                z-index: 10000;
+                background-color: #343a40;
+                color: #fff;
+                padding: 12px;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-size: 0.9rem;
+                line-height: 1.4;
+                max-width: 250px;
+                display: none;
+                pointer-events: none; /* Let clicks pass through if needed, or blocks */
+                pointer-events: auto;
+                border: 1px solid #444;
+            }
+            .help-popover::after {
+                content: '';
+                position: absolute;
+                top: -6px;
+                left: 10px; /* Dynamic? */
+                border-width: 0 6px 6px 6px;
+                border-style: solid;
+                border-color: transparent transparent #343a40 transparent;
+            }
+            .help-popover h4 {
+                margin: 0 0 5px 0;
+                color: #17a2b8;
+                font-size: 1rem;
+            }
+            .help-popover p {
+                margin: 0;
+            }
+            
+            /* Polished Entry Experience */
+            body.help-mode {
+                cursor: help !important;
+            }
+            body.help-mode button, body.help-mode input, body.help-mode select, body.help-mode a {
+                cursor: help !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (event) => {
+            // Don't interfere with typing in input fields
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+                return;
+            }
+
+            // Don't interfere with waveform editor controls
+            const waveformModal = document.getElementById('waveformModal');
+            if (waveformModal && waveformModal.style.display === 'block') {
+                return;
+            }
+
+            const key = event.key;
+            const keyCode = event.code;
+            const ctrlKey = event.ctrlKey || event.metaKey;
+            const shiftKey = event.shiftKey;
+
+            // Handle different shortcuts
+            switch (key) {
+                case ' ': // Spacebar = GO
+                    event.preventDefault();
+                    if (!this.helpMode) {
+                        this.goNext();
+                        this.showTemporaryFeedback('GO! ⏭️');
+                    }
+                    break;
+
+                case 'Escape': // Stop All or Fade All
+                    event.preventDefault();
+                    if (!this.helpMode) {
+                        if (shiftKey) {
+                            this.app.audio.fadeAll();
+                            this.showTemporaryFeedback('FADE ALL 🌊');
+                        } else {
+                            this.app.audio.stopAll();
+                            this.showTemporaryFeedback('STOP ALL 🛑');
+                        }
+                    } else {
+                        this.toggleHelp(); // Exit help mode
+                    }
+                    break;
+
+                case 'ArrowUp': // Previous cue
+                    event.preventDefault();
+                    if (!this.helpMode) {
+                        this.navigateCue(-1);
+                    }
+                    break;
+
+                case 'ArrowDown': // Next cue
+                    event.preventDefault();
+                    if (!this.helpMode) {
+                        this.navigateCue(1);
+                    }
+                    break;
+
+                case 'Enter': // Play current/selected cue
+                    event.preventDefault();
+                    if (!this.helpMode) {
+                        this.playCurrentCue();
+                    }
+                    break;
+
+                case 'Backspace': // Stop current cue
+                    event.preventDefault();
+                    if (!this.helpMode) {
+                        this.stopCurrentCue();
+                    }
+                    break;
+
+                case 'F1': // Help
+                    event.preventDefault();
+                    this.toggleHelp();
+                    break;
+
+                case 'e':
+                case 'E': // Edit mode
+                    if (!this.helpMode && !ctrlKey) {
+                        event.preventDefault();
+                        this.toggleEditMode();
+                        this.showTemporaryFeedback(this.editMode ? 'Edit Mode ON ✏️' : 'Edit Mode OFF 👁️');
+                    }
+                    break;
+
+                case 's':
+                case 'S': // Save
+                    if (!this.helpMode && ctrlKey) {
+                        event.preventDefault();
+                        if (this.editMode) {
+                            if (window.saveCueFileAs) window.saveCueFileAs();
+                            this.showTemporaryFeedback('Save triggered 💾');
+                        }
+                    }
+                    break;
+
+                // Todo: Add Update/Delete/Undo/Redo handlers mapping to state
+            }
+        });
+    }
+
+    navigateCue(direction) {
+        if (this.app.state.cues.length === 0) return;
+        let newIndex = this.app.state.currentCueIndex + direction;
+        if (newIndex >= 0 && newIndex < this.app.state.cues.length) {
+            this.app.state.currentCueIndex = newIndex;
+            this.renderCueTable();
+            // Scroll logic would go here
+        }
+    }
+
+    playCurrentCue() {
+        if (this.app.state.cues.length === 0) return;
+        const cue = this.app.state.cues[this.app.state.currentCueIndex];
+        if (cue) this.handlePlay(cue.cueNumber);
+    }
+
+    stopCurrentCue() {
+        if (this.app.state.cues.length === 0) return;
+        const cue = this.app.state.cues[this.app.state.currentCueIndex];
+        if (cue) this.handleStop(cue.cueNumber);
+    }
+
+    toggleHelp() {
+        this.helpMode = !this.helpMode;
+        // Logic to show/hide help overlay or cursor change
+        // document.body.style.cursor check is now handled by class 'help-mode' CSS
+
+        // CSS likely uses a class on body to show/hide .help-icon
+        const btn = document.getElementById('helpToggle');
+        if (this.helpMode) {
+            document.body.classList.add('help-mode');
+            if (btn) {
+                btn.textContent = 'EXIT HELP';
+                btn.classList.remove('btn-info');
+                btn.classList.add('btn-warning');
+            }
+            // Toast Notification
+            this.showTemporaryFeedback('HELP MODE ACTIVE: Buttons are disabled. Click any (?) for more information. Click "EXIT HELP" to leave.', 4000);
+        } else {
+            document.body.classList.remove('help-mode');
+            const popover = document.getElementById('helpPopover');
+            if (popover) popover.style.display = 'none';
+            if (btn) {
+                btn.innerHTML = 'HELP<span class="help-icon" onclick="showHelp(\'HELP\', \'Show/hide help system and enable help icons throughout the interface\', event)">?</span>';
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-info');
+            }
+            this.showTemporaryFeedback('Help Mode Exited', 2000);
+        }
     }
 
     bindEvents() {
-        // Global clicks for Help Mode
+        // Global clicks for Help Mode Safety and Popover Management
         document.addEventListener('click', (e) => {
             if (!this.helpMode) return;
-            if (e.target.classList.contains('help-icon') ||
-                e.target.id === 'helpToggle' ||
-                e.target.closest('.help-icon') ||
-                e.target.closest('#helpToggle') ||
-                e.target.closest('.help-window')) {
+
+            // 1. Allow clicking the Help Toggle itself to exit
+            if (e.target.id === 'helpToggle' || e.target.closest('#helpToggle')) return;
+
+            // 2. Allow clicking inside popover 
+            if (e.target.closest('#helpPopover')) return;
+
+            // 3. Handle Help Icon clicks (let them bubble to their onclick handlers which call showHelp)
+            // Correction: The onclick attributes are inline. We just need to NOT block them.
+            if (e.target.classList.contains('help-icon') || e.target.closest('.help-icon')) {
+                // Let the inline handler fire
                 return;
             }
-            if (e.target.tagName === 'INPUT') return;
 
+            // 4. BLOCK EVERYTHING ELSE (Safety)
             e.preventDefault();
             e.stopPropagation();
-            this.showHelp('Help Mode Active', 'Click EXIT HELP to return to normal operation.');
-        }, true);
 
-        // --- FILE INPUT LISTENERS (CRITICAL FIX) ---
+            // 5. Dismiss Popover on background click
+            const popover = document.getElementById('helpPopover');
+            if (popover) popover.style.display = 'none';
+
+        }, true); // Capture phase to intercept before buttons fire
+
+        // File inputs are handled by global shims (handleShowFolderLoad, etc.) 
+        // which map to the inline 'onchange' attributes in the HTML.
+        // We do not add event listeners here to prevent double-firing.
+        // CORRECTION: The HTML does NOT have inline attributes for these inputs.
+        // We MUST add event listeners here.
 
         // 1. Audio Folder Input
         const audioInput = document.getElementById('folderInput') || document.getElementById('audioFolderInput');
         if (audioInput) {
-            audioInput.addEventListener('change', (e) => this.app.state.handleAudioFolderLoad(e));
+            audioInput.addEventListener('change', async (e) => {
+                await this.app.state.handleAudioFolderLoad(e);
+                // No need to showProject, landing page stays until separate cue load or new project?
+                // Wait, original behavior: Load Audio -> Stay on landing? Or go to project?
+                // v0.9.2: loadAudioFolder just loaded audio. user still needed to load cues or new project.
+            });
         }
 
         // 2. Cue File Input
@@ -2183,7 +2419,7 @@ class UIController {
         if (cueInput) {
             cueInput.addEventListener('change', async (e) => {
                 await this.app.state.handleCueFileLoad(e);
-                this.showProject(); // Force view switch
+                this.showProject();
             });
         }
 
@@ -2192,7 +2428,7 @@ class UIController {
         if (showInput) {
             showInput.addEventListener('change', async (e) => {
                 await this.app.state.handleShowFolderLoad(e);
-                this.showProject(); // Force view switch
+                this.showProject();
             });
         }
     }
@@ -2401,17 +2637,51 @@ class UIController {
     onCueStarted(cueNumber) {
         console.log('UI: Cue started', cueNumber);
         this.renderCueTable();
-        // Highlight logic is handled by renderCueTable checking app.audio.playingCues
+        // Highlight logic handled by render
+
+        // Auto-Continue Logic (Immediate Chaining)
+        const cue = this.app.state.getCue(cueNumber);
+        if (cue && cue.autoContinue) {
+            if (this.app.audio.stopAllCalled) return;
+
+            const currentIndex = this.app.state.cues.findIndex(c => c.cueNumber === cueNumber);
+            if (currentIndex > -1 && currentIndex < this.app.state.cues.length - 1) {
+                const nextCue = this.app.state.cues[currentIndex + 1];
+                const delay = (cue.autoContinueDelay || 0) * 1000;
+
+                setTimeout(() => {
+                    if (this.app.audio.stopAllCalled) return;
+                    console.log('UI: Auto-Continue triggering', nextCue.cueNumber);
+                    this.handlePlay(nextCue.cueNumber);
+                }, delay);
+            }
+        }
     }
 
     onCueEnded(cueNumber) {
         console.log('UI: Cue ended', cueNumber);
         this.renderCueTable();
 
-        // Note: AudioEngine calls handleFollow(cue) immediately after calling this method.
-        // So we don't need to duplicate auto-follow logic here, unless AudioEngine is disabled.
-        // The user prompted to "check for Auto-Follow" here, but since AudioEngine has it, 
-        // preventing the crash allows AudioEngine to execute it.
+        // Auto-Follow Logic (Sequential Chaining, per User Request)
+        const cue = this.app.state.getCue(cueNumber);
+        if (cue && cue.autoFollow) {
+            if (this.app.audio.stopAllCalled) return;
+
+            const currentIndex = this.app.state.cues.findIndex(c => c.cueNumber === cueNumber);
+            if (currentIndex > -1 && currentIndex < this.app.state.cues.length - 1) {
+                const nextCue = this.app.state.cues[currentIndex + 1];
+                const delay = (cue.autoFollowDelay || 0) * 1000;
+
+                setTimeout(() => {
+                    if (this.app.audio.stopAllCalled) return;
+                    console.log('UI: Auto-Follow triggering', nextCue.cueNumber);
+
+                    this.app.state.currentCueIndex = currentIndex + 1;
+                    this.handlePlay(nextCue.cueNumber);
+                    this.renderCueTable();
+                }, delay + 100);
+            }
+        }
     }
 
     goNext() {
@@ -2431,13 +2701,40 @@ class UIController {
         }
     }
 
+    jumpToFirst() {
+        if (this.app.state.cues.length > 0) {
+            this.app.state.currentCueIndex = 0;
+            this.renderCueTable();
+            this.showTemporaryFeedback('Jumped to First Cue ⏮️');
+        }
+    }
+
+    jumpToCue() {
+        const input = document.getElementById('cueJumpInput');
+        if (!input) return;
+        const target = input.value.trim();
+        if (!target) return;
+
+        const index = this.app.state.cues.findIndex(c => c.cueNumber === target);
+        if (index !== -1) {
+            this.app.state.currentCueIndex = index;
+            this.renderCueTable();
+            this.showTemporaryFeedback(`Jumped to Cue ${target} ⏭️`);
+            input.value = '';
+        } else {
+            alert(`Cue ${target} not found.`);
+        }
+    }
+
     toggleEditMode() {
         this.editMode = !this.editMode;
 
         // DOM Updates
         const actions = document.getElementById('editModeActions');
+        // Robust Selector: Find by onclick attribute (which never changes) OR text content
+        // The previous textContent check failed because innerHTML included a <span>
         const btn = document.querySelector('button[onclick*="editModeFromLanding"]') ||
-            Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Edit Mode') || b.textContent.includes('Exit Edit'));
+            Array.from(document.querySelectorAll('button')).find(b => b.innerHTML.includes('Edit Mode') || b.innerHTML.includes('Exit Edit'));
 
         if (actions) {
             actions.style.display = this.editMode ? 'block' : 'none';
@@ -2445,7 +2742,7 @@ class UIController {
 
         if (btn) {
             if (this.editMode) {
-                btn.innerHTML = 'Exit Edit<span class="help-icon" onclick="showHelp(\'Edit Mode\', \'Enable editing to modify cues, add new ones, and change settings\', event)">?</span>';
+                btn.innerHTML = 'Exit Edit<span class="help-icon" onclick="showHelp(\'Exit Edit\', \'Return to Show Mode to prevent accidentally editing cues\', event)">?</span>';
                 btn.classList.remove('btn-info');
                 btn.classList.add('btn-secondary'); // Or distinct color
             } else {
@@ -2516,7 +2813,7 @@ class UIController {
         this.updateProjectStatus();
     }
 
-    showTemporaryFeedback(message) {
+    showTemporaryFeedback(message, duration = 2000) {
         let feedback = document.getElementById('tempFeedback');
         if (!feedback) {
             feedback = document.createElement('div');
@@ -2531,13 +2828,27 @@ class UIController {
             feedback.style.borderRadius = '5px';
             feedback.style.zIndex = '10000';
             feedback.style.display = 'none';
+            feedback.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+            feedback.style.fontWeight = 'bold';
             document.body.appendChild(feedback);
         }
+
+        // Dynamic Color based on message content (simple heuristic)
+        if (message.includes('SAFE MODE')) {
+            feedback.style.backgroundColor = '#343a40'; // Dark/Info
+        } else if (message.includes('STOP')) {
+            feedback.style.backgroundColor = '#dc3545'; // Red
+        } else {
+            feedback.style.backgroundColor = 'rgba(40, 167, 69, 0.9)'; // Green default
+        }
+
         feedback.textContent = message;
         feedback.style.display = 'block';
-        setTimeout(() => {
+
+        if (this.feedbackTimeout) clearTimeout(this.feedbackTimeout);
+        this.feedbackTimeout = setTimeout(() => {
             feedback.style.display = 'none';
-        }, 2000);
+        }, duration);
     }
 
     updateNextCueDisplay() {
@@ -2550,9 +2861,7 @@ class UIController {
         // ... (Include logic to inject #nextCueSection if missing) logic from step 216
     }
 
-    updateTutorialButton() {
-        // Logic from Step 139
-    }
+
 
     // Stub methods for editing to prevent crashes if onclicks fire
     editField(field, id) {
@@ -2582,12 +2891,72 @@ class UIController {
 
     startClock() {
         setInterval(() => {
-            // Basic updates
-        }, 100);
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const clockEl = document.getElementById('clockDisplay');
+            if (clockEl) {
+                clockEl.textContent = timeString;
+            }
+        }, 1000);
     }
 
-    showHelp(title, text) {
-        // ...
+    updateHeaderDisplay() {
+        const showNameEl = document.getElementById('showName');
+        const fileNameEl = document.getElementById('fileName');
+
+        if (showNameEl) showNameEl.textContent = this.app.state.showName || 'Untitled Show';
+        if (fileNameEl) fileNameEl.textContent = this.app.state.currentFileName || 'No file loaded';
+    }
+
+    // Alias for compatibility
+    updateStatus() {
+        this.updateProjectStatus();
+    }
+
+    showHelp(title, text, event) {
+        if (!this.helpMode) return;
+
+        // Prevent underlying button click
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        let popover = document.getElementById('helpPopover');
+        if (!popover) {
+            popover = document.createElement('div');
+            popover.id = 'helpPopover';
+            popover.className = 'help-popover';
+            document.body.appendChild(popover);
+        }
+
+        // Toggle if clicking same target
+        if (popover.style.display === 'block' && this.lastHelpTarget === event.target) {
+            popover.style.display = 'none';
+            this.lastHelpTarget = null;
+            return;
+        }
+
+        this.lastHelpTarget = event.target;
+        popover.innerHTML = `<h4>${title}</h4><p>${text}</p>`;
+        popover.style.display = 'block';
+
+        // Positioning
+        const rect = event.target.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
+        let top = rect.bottom + scrollTop + 10;
+        let left = rect.left + scrollLeft + (rect.width / 2) - 125; // Center (250px / 2)
+
+        // Edge Detection
+        if (left < 10) left = 10;
+        if (left + 250 > window.innerWidth - 10) left = window.innerWidth - 260;
+
+        popover.style.top = top + 'px';
+        popover.style.left = left + 'px';
+
+        // Move arrow if needed (advanced, skipping for now, relying on general center)
     }
 }
 
@@ -2752,11 +3121,30 @@ window.fadeCue = (id) => app.ui.handleFade(id);
 window.stopAll = () => app.audio.stopAll();
 window.fadeAll = () => app.audio.fadeAll();
 window.goNext = () => app.ui.goNext();
+window.jumpToCue = () => app.ui.jumpToCue();
+window.jumpToFirst = () => app.ui.jumpToFirst();
 
 window.loadAudioFolder = () => document.getElementById('folderInput').click();
 window.loadCueFile = () => document.getElementById('cueFileInput').click();
 window.loadShowFolder = () => document.getElementById('showFolderInput').click();
-// showFolderInput listener needs to be in UIController or ProjectState
+
+// File Input Event Shims (Matching inline HTML onchange attributes)
+window.handleShowFolderLoad = async (event) => {
+    await app.state.handleShowFolderLoad(event);
+    app.ui.showProject();
+};
+
+window.handleFolderSelect = async (event) => {
+    // Maps to Audio Folder
+    await app.state.handleAudioFolderLoad(event);
+    app.ui.showProject(); // Ensure view is visible
+};
+
+window.handleFileSelect = async (event) => {
+    // Maps to Cue JSON File
+    await app.state.handleCueFileLoad(event);
+    app.ui.showProject();
+};
 
 window.newProject = () => {
     app.state.newProject();
@@ -2774,7 +3162,12 @@ window.editModeFromLanding = () => {
     // Implementation:
     if (app.state.cues.length === 0) app.state.newProject();
     app.ui.showProject();
-    if (!app.ui.editMode) app.ui.toggleEditMode(); // Only toggle if not already on
+
+    // Correction: Allow toggling off too
+    // But if we are on landing page, we likely want to enter edit mode. 
+    // If we are ALREADY in the project view (which showProject switches to), the button changes to "Exit Edit".
+    // So calling this function again (via the same button) should toggle it off.
+    app.ui.toggleEditMode();
     app.ui.renderCueTable();
 };
 
@@ -2818,6 +3211,45 @@ window.deleteCue = () => {
             app.ui.renderCueTable();
         }
     }
+};
+
+window.addAudioCue = () => {
+    const cue = {
+        cueNumber: app.state.getSmartCueNumber(),
+        type: 'audio',
+        label: 'New Audio Cue',
+        file: '', // UI should prompt or leave empty
+        volume: 100,
+        pan: 0,
+        loop: 1,
+        fadeInTime: 0,
+        fadeOutTime: 0,
+        startTime: 0,
+        endTime: 0,
+        delay: 0,
+        autoContinue: false,
+        autoFollow: false,
+        status: 'missing'
+    };
+    app.state.addCue(cue);
+    app.ui.renderCueTable();
+};
+
+window.addFadeCue = () => {
+    const cue = {
+        cueNumber: app.state.getSmartCueNumber(),
+        type: 'fade',
+        label: 'New Fade Cue',
+        target: '',
+        targetVolume: 0,
+        fadeDuration: 3000,
+        stopTarget: true,
+        delay: 0,
+        autoContinue: false,
+        autoFollow: false
+    };
+    app.state.addCue(cue);
+    app.ui.renderCueTable();
 };
 
 // Initialize on Load
