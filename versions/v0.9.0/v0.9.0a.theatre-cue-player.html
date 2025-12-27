@@ -4,6 +4,7 @@ Theatre Cue Player
 Developed by Kevin Patrick, Blinn College–Brenham Campus
 With code assistance from OpenAI's ChatGPT and Anthropic's Claude
 
+v0.9.0a 10/22/2025 - attempted checkbox fix for autofollow and autoContinue
 Version 0.9.0 – Last Updated July 26, 2025
 
 BUG TEST IMPLEMENTATION - AUTOCONTINUE AND AUTOFOLLOW CHECKBOX SIMPLIFICATION
@@ -3708,7 +3709,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                     <td onclick="${editMode ? `editField('cueNumber', '${cue.cueNumber}')` : ''}">${cue.cueNumber}</td>
                     <td onclick="${editMode ? `editField('label', '${cue.cueNumber}')` : ''}">${displayLabel}</td>
                     <td class="${targetCellClass}" onclick="${editMode ? `selectTarget('${cue.cueNumber}')` : ''}">${targetCellContent}</td>
-                    <td onclick="event.stopPropagation()"><input type="checkbox" ${cue.autoContinue ? 'checked' : ''} ${editMode ? `onchange="toggl'${cue.cueNumber}').autoContinue = this.checked; updateUI();"` : 'disabled'}></td>
+                    <td onclick="event.stopPropagation()"><input type="checkbox" ${cue.autoContinue ? 'checked' : ''} ${editMode ? `onchange="toggleAutoContinue('${cue.cueNumber.replace(/'/g, "\\'").replace(/"/g, "&quot;")}', this.checked)"` : 'disabled'}></td>
                     <td onclick="${editMode ? `editField('delay', '${cue.cueNumber}')` : ''}">${formatSecondsFromMs(cue.delay)}</td>
                     <td onclick="${editMode && cue.type === 'audio' ? `editField('startTime', '${cue.cueNumber}')` : ''}">${cue.type === 'audio' ? formatTime(cue.startTime) : '-'}</td>
                     <td onclick="${editMode && cue.type === 'audio' ? `editField('fadeInTime', '${cue.cueNumber}')` : ''}">${cue.type === 'audio' ? formatSecondsFromMs(cue.fadeInTime) : '-'}</td>
@@ -3757,6 +3758,24 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             selectedCueIndex = index;
             updateUI(); // Refresh to show selection highlighting
             console.log('Selected cue index for insertion:', index);
+			
+		function toggleAutoContinue(cueNumber, checked) {
+            const cue = project.cues.find(c => c.cueNumber === cueNumber);
+            if (cue) {
+                cue.autoContinue = checked;
+                saveState(`Toggle auto-continue for cue ${cueNumber}`);
+                updateUI();
+            }
+        }
+
+        function toggleAutoFollow(cueNumber, checked) {
+            const cue = project.cues.find(c => c.cueNumber === cueNumber);
+            if (cue) {
+                cue.autoFollow = checked;
+                saveState(`Toggle auto-follow for cue ${cueNumber}`);
+                updateUI();
+            }
+        }
         }
 
         function selectFile(cueNumber) {
