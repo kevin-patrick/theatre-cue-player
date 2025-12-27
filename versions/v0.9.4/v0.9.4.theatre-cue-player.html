@@ -1546,6 +1546,8 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
     <script>
 
+// --- CORE ---
+
 /**
  * Core Classes for Theatre Cue Player v0.9.4
  */
@@ -1652,10 +1654,16 @@ class AudioEngine {
                     return;
                 }
             }
-
-            this.playAudioBuffer(cue);
         }
+
+        if (!cue.audioBuffer) {
+            console.warn(`Aborting playback: No audio buffer available for cue ${cue.cueNumber}`);
+            return;
+        }
+
+        this.playAudioBuffer(cue);
     }
+
 
     playAudioBuffer(cue) {
         const source = this.ctx.createBufferSource();
@@ -2085,11 +2093,15 @@ class ProjectState {
             if (!isNaN(num)) {
                 cue[field] = num;
             } else {
-                // If it's a fade time or delay, maybe 0 default? Or revert? 
-                // For now, let's allow it to be 0 if parsing fails, or keep old value? 
-                // Legacy often defaulted to 0.
                 console.warn(`Invalid number for ${field}: ${value}`);
             }
+        } else if (field === 'file') {
+            cue.file = value;
+            cue.audioBuffer = null; // FORCE RELOAD
+            cue.status = (this.files.has(value)) ? 'ready' : 'missing';
+        } else if (field === 'type') {
+            cue[field] = value;
+            cue.audioBuffer = null;
         } else {
             cue[field] = value;
         }
@@ -2172,6 +2184,7 @@ class ProjectState {
     }
 }
 
+// --- UI ---
 
 /**
  * UI Controller for Theatre Cue Player v0.9.4
@@ -3184,6 +3197,7 @@ class UIController {
     }
 }
 
+// --- WAVEFORM ---
 
 /**
  * Waveform Editor Logic for Theatre Cue Player v0.9.4
@@ -3310,6 +3324,7 @@ UIController.prototype.applyWaveformChanges = function () {
     this.app.state.saveUndoState("Waveform Edit Cue " + cue.cueNumber);
 };
 
+// --- GLUE ---
 
 /**
  * Application Glue and Global Shims for Theatre Cue Player v0.9.4
