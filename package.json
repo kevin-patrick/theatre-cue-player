@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "scripts": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kevin-patrick/theatre-cue-player.git"
@@ -19,6 +17,8 @@
   },
   "homepage": "https://github.com/kevin-patrick/theatre-cue-player#readme",
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^25.0.3",
     "vite": "^7.3.0",
     "vite-plugin-singlefile": "^2.3.0"
   }

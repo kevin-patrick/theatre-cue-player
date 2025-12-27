@@ -1561,6 +1561,11 @@ class AudioEngine {
         this.stopAllCalled = false;
         this.FADE_CURVE_EXP = 2;
         this.vuMeterAnimationId = null;
+
+        // Callbacks
+        this.onCueEnded = null;
+        this.onCueStarted = null;
+        this.onCueStopped = null;
     }
 
     async init() {
@@ -1613,6 +1618,9 @@ class AudioEngine {
         await this.init();
         const cue = this.state.getCue(cueNumber);
         if (!cue) return;
+
+        // Reset Stop All State if a new cue is manually or automatically triggered
+        if (this.stopAllCalled) this.clearPendingTimeouts();
 
         // Stop existing instances if playing (Single Instance Per Cue behavior)
         if (this.playingCues.has(cueNumber)) {
@@ -1722,7 +1730,9 @@ class AudioEngine {
 
                 if (list.length === 0) {
                     this.playingCues.delete(cue.cueNumber);
-                    if (window.app && window.app.ui) {
+                    if (this.onCueEnded) {
+                        this.onCueEnded(cue.cueNumber);
+                    } else if (window.app && window.app.ui) {
                         window.app.ui.onCueEnded(cue.cueNumber);
                     }
                     this.handleFollow(cue);
@@ -1822,8 +1832,9 @@ class AudioEngine {
     }
 
     handleContinue(cue) {
-        if (cue.autoContinue && cue.autoContinueDelay !== undefined) {
-            const delay = cue.autoContinueDelay * 1000;
+        // Fix: Looser check
+        if (cue.autoContinue) {
+            const delay = (cue.autoContinueDelay || 0) * 1000;
             const timeoutId = setTimeout(() => {
                 if (window.app && window.app.ui) window.app.ui.goNext();
             }, delay);
@@ -1833,8 +1844,11 @@ class AudioEngine {
 
     handleFollow(cue) {
         if (this.stopAllCalled) return;
-        if (cue.autoFollow && cue.autoFollowDelay !== undefined) {
-            const delay = cue.autoFollowDelay * 1000;
+        // Fix: Looser check for autoFollow (delay might be undefined/null, default to 0)
+        // Also disabled internal goNext call if we want strict sequence handling by UIController.
+        // BUT current architecture has AudioEngine driving flow.
+        if (cue.autoFollow) {
+            const delay = (cue.autoFollowDelay || 0) * 1000;
             const timeoutId = setTimeout(() => {
                 if (window.app && window.app.ui) window.app.ui.goNext();
             }, delay);
@@ -1898,6 +1912,7 @@ class ProjectState {
         this.redoStack = [];
         this.MAX_UNDO_LEVELS = 5;
         this.audioFilesLoaded = 0;
+        this.selectedCueIndex = -1;
     }
 
     loadProject(json) {
@@ -2049,6 +2064,49 @@ class ProjectState {
         return isNaN(num) ? last.cueNumber + ".1" : (Math.floor(num) + 1).toString();
     }
 
+    // --- Edit Mode Methods ---
+
+    selectCueForInsertion(index) {
+        this.selectedCueIndex = index;
+        if (window.app && window.app.ui) window.app.ui.renderCueTable();
+    }
+
+    updateCueData(cueNumber, field, value) {
+        const cue = this.getCue(cueNumber);
+        if (!cue) return;
+
+        this.saveUndoState(`Edit ${field} for Cue ${cueNumber}`);
+
+        // Type Casting
+        const numericFields = ['volume', 'pan', 'loop', 'fadeInTime', 'fadeOutTime', 'startTime', 'endTime', 'delay', 'autoContinueDelay', 'autoFollowDelay'];
+
+        if (numericFields.includes(field)) {
+            const num = parseFloat(value);
+            if (!isNaN(num)) {
+                cue[field] = num;
+            } else {
+                // If it's a fade time or delay, maybe 0 default? Or revert? 
+                // For now, let's allow it to be 0 if parsing fails, or keep old value? 
+                // Legacy often defaulted to 0.
+                console.warn(`Invalid number for ${field}: ${value}`);
+            }
+        } else {
+            cue[field] = value;
+        }
+
+        if (window.app && window.app.ui) window.app.ui.renderCueTable();
+    }
+
+    updateCueProperty(cueNumber, field, isChecked) {
+        const cue = this.getCue(cueNumber);
+        if (!cue) return;
+
+        this.saveUndoState(`Toggle ${field} for Cue ${cueNumber}`);
+        cue[field] = isChecked;
+
+        if (window.app && window.app.ui) window.app.ui.renderCueTable();
+    }
+
     // --- NEW METHODS FOR FILE IO AND PROJECT MANAGEMENT ---
 
     newProject() {
@@ -2146,13 +2204,19 @@ class UIController {
         this.bindEvents();
         this.setupKeyboardShortcuts();
         this.updateHeaderDisplay();
+        this.setupKeyboardShortcuts();
+        this.updateHeaderDisplay();
         this.startClock();
+
+        // Fix Auto-Follow: Bind audio engine callback
+        this.app.audio.onCueEnded = this.onCueEnded.bind(this);
 
         // Remove Tutorial Button (Feature Removal)
         const tutorialBtn = document.getElementById('tutorialButton');
         if (tutorialBtn) tutorialBtn.remove();
 
         this.injectHelpStyles(); // Inject CSS for popover
+        this.injectSelectionModalStyles(); // Inject CSS for selection modal
 
         // Global click listener to close popover
         document.addEventListener('click', (e) => {
@@ -2212,6 +2276,82 @@ class UIController {
             }
             body.help-mode button, body.help-mode input, body.help-mode select, body.help-mode a {
                 cursor: help !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    injectSelectionModalStyles() {
+        if (document.getElementById('selectionModalStyles')) return;
+        const style = document.createElement('style');
+        style.id = 'selectionModalStyles';
+        style.textContent = `
+            #selectionModal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.85);
+                z-index: 10001;
+                display: none;
+                align-items: center;
+                justify-content: center;
+            }
+            .selection-modal-content {
+                background: #2a2a2a;
+                width: 90%;
+                max-width: 600px;
+                max-height: 80%;
+                border-radius: 8px;
+                border: 2px solid #007bff;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            }
+            .selection-modal-header {
+                padding: 1rem;
+                border-bottom: 1px solid #444;
+                background: #333;
+                color: #fff;
+                font-size: 1.2rem;
+                font-weight: bold;
+                border-radius: 6px 6px 0 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .selection-modal-body {
+                padding: 1rem;
+                overflow-y: auto;
+                flex: 1;
+                display: grid;
+                gap: 0.5rem;
+            }
+            .selection-modal-btn {
+                background: #343a40;
+                color: #fff;
+                border: 1px solid #555;
+                padding: 1rem;
+                text-align: left;
+                width: 100%;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 1rem;
+                transition: background 0.2s;
+            }
+            .selection-modal-btn:hover {
+                background: #495057;
+                border-color: #007bff;
+            }
+            .selection-modal-cancel {
+                background: #dc3545;
+                color: #fff;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.9rem;
             }
         `;
         document.head.appendChild(style);
@@ -2288,19 +2428,6 @@ class UIController {
                     }
                     break;
 
-                case 'F1': // Help
-                    event.preventDefault();
-                    this.toggleHelp();
-                    break;
-
-                case 'e':
-                case 'E': // Edit mode
-                    if (!this.helpMode && !ctrlKey) {
-                        event.preventDefault();
-                        this.toggleEditMode();
-                        this.showTemporaryFeedback(this.editMode ? 'Edit Mode ON ✏️' : 'Edit Mode OFF 👁️');
-                    }
-                    break;
 
                 case 's':
                 case 'S': // Save
@@ -2336,8 +2463,43 @@ class UIController {
 
     stopCurrentCue() {
         if (this.app.state.cues.length === 0) return;
-        const cue = this.app.state.cues[this.app.state.currentCueIndex];
-        if (cue) this.handleStop(cue.cueNumber);
+
+        // Stop the currently selected cue (if playing)
+        // Or stop the last triggered cue?
+        // User request: "stop only the current cue playing"
+        // If we just hit GO, currentCueIndex is Next.
+        // So we likely want to stop currentCueIndex OR currentCueIndex - 1.
+        // Let's try stopping the cue referenced by currentCueIndex FIRST?
+        // But if we hit GO, `idx` increments. So `cues[idx]` is waiting.
+        // `cues[idx-1]` is playing.
+
+        // Strategy: Iterate to find playing cues?
+        // Simpler: Stop the cue at index - 1 if it exists and is playing?
+        // Or Stop the cue at index?
+        // Let's stop BOTH to be safe? No, that might be confusing.
+
+        // Let's check AudioEngine for ACTIVELY playing cues.
+        // But UI doesn't know easily.
+
+        // Fallback: Try to stop the cue BEFORE the current index, as that's the one likely playing.
+        // If nothing playing there, try the current index.
+
+        const idx = this.app.state.currentCueIndex;
+
+        // Prority 1: The cue that likely just started (index - 1)
+        if (idx > 0) {
+            const prevCue = this.app.state.cues[idx - 1];
+            if (this.app.audio.playingCues.has(prevCue.cueNumber)) {
+                this.handleStop(prevCue.cueNumber);
+                return;
+            }
+        }
+
+        // Priority 2: The cue at current index (if manual play)
+        const currCue = this.app.state.cues[idx];
+        if (currCue && this.app.audio.playingCues.has(currCue.cueNumber)) {
+            this.handleStop(currCue.cueNumber);
+        }
     }
 
     toggleHelp() {
@@ -2589,7 +2751,7 @@ class UIController {
         document.getElementById('cueList').innerHTML = html;
         this.updateProjectStatus();
         this.updateNextCueDisplay();
-        this.updateTutorialButton();
+        // this.updateTutorialButton(); removed
     }
 
     // --- Helpers ---
@@ -2661,27 +2823,12 @@ class UIController {
     onCueEnded(cueNumber) {
         console.log('UI: Cue ended', cueNumber);
         this.renderCueTable();
+        // Auto-Follow handled by AudioEngine callback
+    }
 
-        // Auto-Follow Logic (Sequential Chaining, per User Request)
-        const cue = this.app.state.getCue(cueNumber);
-        if (cue && cue.autoFollow) {
-            if (this.app.audio.stopAllCalled) return;
-
-            const currentIndex = this.app.state.cues.findIndex(c => c.cueNumber === cueNumber);
-            if (currentIndex > -1 && currentIndex < this.app.state.cues.length - 1) {
-                const nextCue = this.app.state.cues[currentIndex + 1];
-                const delay = (cue.autoFollowDelay || 0) * 1000;
-
-                setTimeout(() => {
-                    if (this.app.audio.stopAllCalled) return;
-                    console.log('UI: Auto-Follow triggering', nextCue.cueNumber);
-
-                    this.app.state.currentCueIndex = currentIndex + 1;
-                    this.handlePlay(nextCue.cueNumber);
-                    this.renderCueTable();
-                }, delay + 100);
-            }
-        }
+    onCueStopped(cueNumber) {
+        console.log('UI: Cue stopped', cueNumber);
+        this.renderCueTable();
     }
 
     goNext() {
@@ -2753,7 +2900,11 @@ class UIController {
         }
 
         this.renderCueTable();
-        this.updateStatus();
+    } // End toggleEditMode
+
+    updateStatus() {
+        // Alias for updateTutorialButton or general status update
+        // No-op for now as tutorial is removed
     }
 
     async handlePlay(id) {
@@ -2864,15 +3015,88 @@ class UIController {
 
 
     // Stub methods for editing to prevent crashes if onclicks fire
+    // --- Edit Mode Methods ---
+
     editField(field, id) {
-        const newVal = prompt(`Enter new ${field}:`);
-        if (newVal) this.app.state.updateCueData(id, field, newVal);
-        this.renderCueTable();
+        if (!this.editMode) return;
+        const cue = this.app.state.getCue(id);
+        if (!cue) return;
+
+        let currentVal = cue[field];
+        if (currentVal === undefined) currentVal = '';
+
+        const newVal = prompt(`Enter new value for ${field}:`, currentVal);
+        if (newVal !== null) { // Check for null (User cancelled)
+            this.app.state.updateCueData(id, field, newVal);
+        }
     }
 
     selectTarget(id) {
-        // File Selector Logic?
-        // app.ui.selectFile(id);
+        if (!this.editMode) return;
+        const cue = this.app.state.getCue(id);
+        if (!cue) return;
+
+        if (cue.type === 'audio') {
+            const files = Array.from(this.app.state.files.keys());
+            if (files.length === 0) {
+                alert("No audio files loaded. Please load a folder first.");
+                return;
+            }
+            
+            this.showSelectionModal('Select Audio File', files, (selectedFile) => {
+                this.app.state.updateCueData(id, 'file', selectedFile);
+            });
+
+        } else if (cue.type === 'fade') {
+             // Filter out current cue to avoid self-target
+             const options = this.app.state.cues
+                 .filter(c => c.cueNumber !== cue.cueNumber)
+                 .map(c => c.cueNumber);
+                 
+             if (options.length === 0) {
+                 alert("No other cues available to target.");
+                 return;
+             }
+
+             this.showSelectionModal('Select Target Cue', options, (selectedCueNum) => {
+                 this.app.state.updateCueData(id, 'target', selectedCueNum);
+             });
+        }
+    }
+
+    showSelectionModal(title, options, callback) {
+        let modal = document.getElementById('selectionModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'selectionModal';
+            modal.innerHTML = `
+                <div class="selection-modal-content">
+                    <div class="selection-modal-header">
+                        <span id="selectionModalTitle">Select Item</span>
+                        <button class="selection-modal-cancel" onclick="document.getElementById('selectionModal').style.display='none'">Cancel</button>
+                    </div>
+                    <div class="selection-modal-body" id="selectionModalBody"></div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        document.getElementById('selectionModalTitle').textContent = title;
+        const body = document.getElementById('selectionModalBody');
+        body.innerHTML = '';
+
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'selection-modal-btn';
+            btn.textContent = opt;
+            btn.onclick = () => {
+                callback(opt);
+                modal.style.display = 'none';
+            };
+            body.appendChild(btn);
+        });
+
+        modal.style.display = 'flex';
     }
 
     showProject() {
