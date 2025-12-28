@@ -2328,6 +2328,9 @@ class UIController {
                 display: flex;
                 flex-direction: column;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
             }
             .selection-modal-header {
                 padding: 1rem;
@@ -2345,8 +2348,9 @@ class UIController {
                 padding: 1rem;
                 overflow-y: auto;
                 flex: 1;
-                display: grid;
+                display: block; /* Change from grid for simpler stacking */
                 gap: 0.5rem;
+                max-height: 80vh;
             }
             .selection-modal-btn {
                 background: #343a40;
@@ -2355,10 +2359,22 @@ class UIController {
                 padding: 1rem;
                 text-align: left;
                 width: 100%;
+                display: block;
+                margin-bottom: 5px;
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 1rem;
                 transition: background 0.2s;
+            }
+            
+            /* Auto-Continue Visual Override to match Auto-Follow */
+            .cue-table tr.auto-continue {
+                background: rgba(0, 123, 255, 0.1) !important; /* Match Auto-Follow Blue-ish Tint */
+            }
+            /* Explicitly ensure Blue Playhead overrides this */
+            .cue-table tr.current-cue {
+                background: rgba(0, 123, 255, 0.4) !important;
+                z-index: 10;
             }
             .selection-modal-btn:hover {
                 background: #495057;
@@ -2700,6 +2716,7 @@ class UIController {
             const isAutoContinue = cue.autoContinue;
             const isAutoFollow = cue.autoFollow;
             const isPreviousAutoFollow = i > 0 && project.cues[i - 1].autoFollow;
+            const isPreviousAutoContinue = i > 0 && project.cues[i - 1].autoContinue;
 
             let rowClasses = [];
             if (isCurrentCue) rowClasses.push('current-cue');
@@ -2707,11 +2724,12 @@ class UIController {
             if (isPlaying) rowClasses.push('playing');
             if (isFading) rowClasses.push('fading');
             if (isLooping) rowClasses.push('looping');
-            if (isAutoContinue && !isCurrentCue && !isPlaying && !isFading && !isLooping) rowClasses.push('auto-continue');
+            // Auto-Continue Visuals: Apply to NEXT row if PREVIOUS had autoContinue
+            if (isPreviousAutoContinue && !isCurrentCue && !isPlaying && !isFading && !isLooping) rowClasses.push('auto-continue');
             if (isPreviousAutoFollow && !isCurrentCue && !isPlaying && !isFading && !isLooping) rowClasses.push('auto-follow');
 
             let displayLabel = cue.label || 'Untitled';
-            if (isAutoContinue) displayLabel = '&nbsp;&nbsp;⬇️' + displayLabel;
+            if (isPreviousAutoContinue) displayLabel = '&nbsp;&nbsp;⬇️' + displayLabel;
             if (isPreviousAutoFollow) displayLabel = '&nbsp;&nbsp;➡️' + displayLabel;
 
             const loopCount = cue.loop || 1;
