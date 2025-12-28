@@ -2074,6 +2074,13 @@ class ProjectState {
 
     // --- Edit Mode Methods ---
 
+    setCurrentCueIndex(index) {
+        if (index >= 0 && index < this.cues.length) {
+            this.currentCueIndex = index;
+            if (window.app && window.app.ui) window.app.ui.renderCueTable();
+        }
+    }
+
     selectCueForInsertion(index) {
         this.selectedCueIndex = index;
         if (window.app && window.app.ui) window.app.ui.renderCueTable();
@@ -2696,7 +2703,7 @@ class UIController {
 
             let rowClasses = [];
             if (isCurrentCue) rowClasses.push('current-cue');
-            if (i === selectedCueIndex) rowClasses.push('selected-cue');
+            // Removed selected-cue class logic per user request
             if (isPlaying) rowClasses.push('playing');
             if (isFading) rowClasses.push('fading');
             if (isLooping) rowClasses.push('looping');
@@ -2723,8 +2730,8 @@ class UIController {
 
             // HTML Construction - Using legacy calls to window.* which will shim to app.*
             html += `
-            <tr class="${rowClasses.join(' ')}" onclick="if(event.target.type !== 'checkbox' && event.target.tagName !== 'BUTTON') app.state.selectCueForInsertion(${i})" style="cursor: pointer;">
-                <td onclick="${editMode ? `app.ui.editField('cueNumber', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.cueNumber}</td>
+            <tr class="${rowClasses.join(' ')}" style="cursor: default;">
+                <td onclick="app.state.setCurrentCueIndex(${i}); event.stopPropagation();" style="cursor: pointer;">${cue.cueNumber}</td>
                 <td onclick="${editMode ? `app.ui.editField('label', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${displayLabel}</td>
                 <td class="${targetCellClass}" onclick="${editMode ? `app.ui.selectTarget('${cue.cueNumber}'); event.stopPropagation();` : ''}">${targetCellContent}</td>
                 <td><input type="checkbox" ${cue.autoContinue ? 'checked' : ''} ${editMode ? `onchange="event.stopPropagation(); app.state.updateCueProperty('${cue.cueNumber}', 'autoContinue', this.checked);"` : 'disabled'}></td>
@@ -2756,10 +2763,10 @@ class UIController {
                     <button onclick="stopCue('${cue.cueNumber}')" class="btn btn-danger" style="padding: 0.2rem 0.4rem; margin-right: 0.2rem;"${cue.type === 'fade' ? ' disabled' : ''}>■</button>
                     ${editMode ? `<button onclick="${cue.type === 'audio' && cue.audioBuffer ? `openWaveformEditor('${cue.cueNumber}')` : 'void(0)'}" class="btn ${cue.type === 'audio' && cue.audioBuffer ? 'btn-info' : 'btn-secondary'}" style="padding: 0.2rem 0.4rem; ${cue.type === 'fade' ? 'opacity: 0.3; cursor: not-allowed;' : ''}" title="Waveform Editor" ${cue.type === 'fade' ? 'disabled' : ''}>∿</button>` : ''}
                 </td>
-            </tr>`;
+            </tr > `;
         }
 
-        html += `</tbody></table>`;
+        html += `</tbody ></table > `;
 
         document.getElementById('cueList').innerHTML = html;
         this.updateProjectStatus();
@@ -2773,7 +2780,7 @@ class UIController {
         if (cue.type === 'audio') {
             return cue.file ? (cue.file.split('/').pop() || cue.file) : '<span style="color:#dc3545">No File</span>';
         } else if (cue.type === 'fade') {
-            return cue.target ? `Fade Cue ${cue.target}` : '<span style="color:#dc3545">No Target</span>';
+            return cue.target ? `Fade Cue ${cue.target} ` : '<span style="color:#dc3545">No Target</span>';
         }
         return '-';
     }
@@ -2792,7 +2799,7 @@ class UIController {
         if (!seconds) return '0:00';
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
-        return `${m}:${s.toString().padStart(2, '0')}`;
+        return `${m}:${s.toString().padStart(2, '0')} `;
     }
 
     calculateCueDuration(cue) {
@@ -3038,7 +3045,7 @@ class UIController {
         let currentVal = cue[field];
         if (currentVal === undefined) currentVal = '';
 
-        const newVal = prompt(`Enter new value for ${field}:`, currentVal);
+        const newVal = prompt(`Enter new value for ${field}: `, currentVal);
         if (newVal !== null) { // Check for null (User cancelled)
             this.app.state.updateCueData(id, field, newVal);
         }
@@ -3046,6 +3053,13 @@ class UIController {
 
     selectTarget(id) {
         if (!this.editMode) return;
+
+        // Fix: Explicitly select this cue so the row highlights (User Feedback)
+        const index = this.app.state.cues.findIndex(c => c.cueNumber === id);
+        if (index !== -1) {
+            this.app.state.selectCueForInsertion(index);
+        }
+
         const cue = this.app.state.getCue(id);
         if (!cue) return;
 
@@ -3055,25 +3069,25 @@ class UIController {
                 alert("No audio files loaded. Please load a folder first.");
                 return;
             }
-            
+
             this.showSelectionModal('Select Audio File', files, (selectedFile) => {
                 this.app.state.updateCueData(id, 'file', selectedFile);
             });
 
         } else if (cue.type === 'fade') {
-             // Filter out current cue to avoid self-target
-             const options = this.app.state.cues
-                 .filter(c => c.cueNumber !== cue.cueNumber)
-                 .map(c => c.cueNumber);
-                 
-             if (options.length === 0) {
-                 alert("No other cues available to target.");
-                 return;
-             }
+            // Filter out current cue to avoid self-target
+            const options = this.app.state.cues
+                .filter(c => c.cueNumber !== cue.cueNumber)
+                .map(c => c.cueNumber);
 
-             this.showSelectionModal('Select Target Cue', options, (selectedCueNum) => {
-                 this.app.state.updateCueData(id, 'target', selectedCueNum);
-             });
+            if (options.length === 0) {
+                alert("No other cues available to target.");
+                return;
+            }
+
+            this.showSelectionModal('Select Target Cue', options, (selectedCueNum) => {
+                this.app.state.updateCueData(id, 'target', selectedCueNum);
+            });
         }
     }
 
@@ -3083,14 +3097,14 @@ class UIController {
             modal = document.createElement('div');
             modal.id = 'selectionModal';
             modal.innerHTML = `
-                <div class="selection-modal-content">
+                < div class="selection-modal-content" >
                     <div class="selection-modal-header">
                         <span id="selectionModalTitle">Select Item</span>
                         <button class="selection-modal-cancel" onclick="document.getElementById('selectionModal').style.display='none'">Cancel</button>
                     </div>
                     <div class="selection-modal-body" id="selectionModalBody"></div>
-                </div>
-            `;
+                </div >
+                `;
             document.body.appendChild(modal);
         }
 
@@ -3175,7 +3189,7 @@ class UIController {
         }
 
         this.lastHelpTarget = event.target;
-        popover.innerHTML = `<h4>${title}</h4><p>${text}</p>`;
+        popover.innerHTML = `< h4 > ${title}</h4 > <p>${text}</p>`;
         popover.style.display = 'block';
 
         // Positioning
