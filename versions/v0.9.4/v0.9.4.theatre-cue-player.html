@@ -2203,6 +2203,7 @@ class UIController {
         this.app = app;
         this.editMode = false;
         this.helpMode = false;
+        this.shortcutsBound = false;
         // this.tutorialMode handled by global shims/vars for now or state
         this.currentCueIndex = 0; // Internal tracker, although app.state.selectedCueIndex exists
 
@@ -2394,6 +2395,10 @@ class UIController {
     }
 
     setupKeyboardShortcuts() {
+        if (this.shortcutsBound) return;
+
+        console.log('Keyboard shortcuts initialized');
+
         document.addEventListener('keydown', (event) => {
             // Don't interfere with typing in input fields
             if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
@@ -2421,8 +2426,17 @@ class UIController {
                     }
                     break;
 
-                case 'Escape': // Stop All or Fade All
+                case 'Escape': // Stop All, Fade All, or Close Modal
                     event.preventDefault();
+
+                    // Check for Modal First
+                    const selectionModal = document.getElementById('selectionModal');
+                    if (selectionModal && selectionModal.style.display !== 'none') {
+                        selectionModal.style.display = 'none';
+                        document.body.focus();
+                        return; // CRITICAL: Stop here, do not stop audio
+                    }
+
                     if (!this.helpMode) {
                         if (shiftKey) {
                             this.app.audio.fadeAll();
@@ -2479,6 +2493,8 @@ class UIController {
                 // Todo: Add Update/Delete/Undo/Redo handlers mapping to state
             }
         });
+
+        this.shortcutsBound = true;
     }
 
     navigateCue(direction) {
@@ -3118,7 +3134,7 @@ class UIController {
                 < div class="selection-modal-content" >
                     <div class="selection-modal-header">
                         <span id="selectionModalTitle">Select Item</span>
-                        <button class="selection-modal-cancel" onclick="document.getElementById('selectionModal').style.display='none'">Cancel</button>
+                        <button class="selection-modal-cancel" onclick="document.getElementById('selectionModal').style.display='none'; document.body.focus();">Cancel</button>
                     </div>
                     <div class="selection-modal-body" id="selectionModalBody"></div>
                 </div >
@@ -3137,6 +3153,7 @@ class UIController {
             btn.onclick = () => {
                 callback(opt);
                 modal.style.display = 'none';
+                document.body.focus();
             };
             body.appendChild(btn);
         });
