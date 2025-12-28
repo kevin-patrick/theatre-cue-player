@@ -1560,6 +1560,7 @@ class AudioEngine {
         this.analyser = null;
         this.playingCues = new Map(); // Map<cueNumber, Array<Instance>>
         this.pendingTimeouts = new Map(); // Map<type, Set<timeoutId>>
+        this.delayTimeouts = new Map(); // Map<cueNumber, timeoutId> (For Pre-Wait Delays)
         this.stopAllCalled = false;
         this.FADE_CURVE_EXP = 2;
         this.vuMeterAnimationId = null;
@@ -1621,14 +1622,42 @@ class AudioEngine {
         const cue = this.state.getCue(cueNumber);
         if (!cue) return;
 
-        // Reset Stop All State if a new cue is manually or automatically triggered
+        // Reset Stop All State
         if (this.stopAllCalled) this.clearPendingTimeouts();
 
-        // Stop existing instances if playing (Single Instance Per Cue behavior)
+        // Stop existing instances logic
         if (this.playingCues.has(cueNumber)) {
             this.stopCue(cueNumber);
         }
 
+        // Clear any existing pre-wait delay for this cue
+        if (this.delayTimeouts.has(cueNumber)) {
+            clearTimeout(this.delayTimeouts.get(cueNumber));
+            this.delayTimeouts.delete(cueNumber);
+        }
+
+        // IMMEDIATE: Notify UI and Trigger Auto-Continue
+        if (window.app && window.app.ui) {
+            window.app.ui.onCueStarted(cue.cueNumber);
+        }
+        this.handleContinue(cue);
+
+        // HANDLE DELAY (Pre-Wait)
+        if (cue.delay && cue.delay > 0) {
+            const timeoutId = setTimeout(() => {
+                this.delayTimeouts.delete(cueNumber);
+                this.triggerCuePlayback(cue);
+            }, cue.delay);
+
+            this.delayTimeouts.set(cueNumber, timeoutId);
+            return;
+        }
+
+        this.triggerCuePlayback(cue);
+    }
+
+    // Split playback logic for delay handling
+    async triggerCuePlayback(cue) {
         if (cue.type === 'fade') {
             this.executeFadeCue(cue);
             return;
@@ -1637,9 +1666,7 @@ class AudioEngine {
         if (cue.type === 'audio') {
             const file = this.state.getFile(cue.file);
             if (!file) {
-                console.warn('Audio file missing for cue', cueNumber);
-                // UI update handled by caller or observer? 
-                // We will emit an event or call UI directly via global app for now as per plan
+                console.warn('Audio file missing for cue', cue.cueNumber);
                 return;
             }
 
@@ -1650,7 +1677,7 @@ class AudioEngine {
                     cue.audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
                 } catch (e) {
                     console.error('Error decoding audio', e);
-                    alert('Error decoding audio for cue ' + cueNumber);
+                    alert('Error decoding audio for cue ' + cue.cueNumber);
                     return;
                 }
             }
@@ -1747,11 +1774,7 @@ class AudioEngine {
                 }
             }
         };
-
-        if (window.app && window.app.ui) {
-            window.app.ui.onCueStarted(cue.cueNumber);
-        }
-        this.handleContinue(cue);
+        // Removed immediate triggers here (moved to playCue)
     }
 
     executeFadeCue(cue) {
@@ -1763,7 +1786,11 @@ class AudioEngine {
         const targetVol = this.volumeToGain(cue.targetVolume !== undefined ? cue.targetVolume : 0);
         const now = this.ctx.currentTime;
 
-        if (window.app && window.app.ui) window.app.ui.onCueStarted(cue.cueNumber);
+        if (window.app && window.app.ui && !this.playingCues.has(cue.cueNumber)) {
+            // Only update UI if we haven't already (though playCue handles start, we might need to double check state?)
+            // Actually playCue handled onCueStarted. 
+            // For fades, we don't re-trigger it.
+        }
 
         targetInstances.forEach(inst => {
             if (inst.isFading) {
@@ -1771,10 +1798,7 @@ class AudioEngine {
             }
             inst.isFading = true;
 
-            const currentVal = inst.gainNode.gain.value; // Use current computed value if possible? 
-            // WebAudio value getter returns last set value, might need computed value if currently ramping.
-            // But we don't have easy access to computed value without AudioParamMap in some browsers.
-            // Assumption: we ramp from current value.
+            const currentVal = inst.gainNode.gain.value;
 
             inst.gainNode.gain.cancelScheduledValues(now);
             inst.gainNode.gain.setValueAtTime(currentVal, now);
@@ -1796,10 +1820,16 @@ class AudioEngine {
             this.handleFollow(cue);
         }, cue.fadeDuration || 0);
 
-        this.handleContinue(cue);
+        // Removed handleContinue (moved to playCue)
     }
 
     stopCue(cueNumber) {
+        // Clear any pending pre-wait delay
+        if (this.delayTimeouts.has(cueNumber)) {
+            clearTimeout(this.delayTimeouts.get(cueNumber));
+            this.delayTimeouts.delete(cueNumber);
+        }
+
         if (this.playingCues.has(cueNumber)) {
             const list = this.playingCues.get(cueNumber);
             list.forEach(inst => {
@@ -1819,6 +1849,11 @@ class AudioEngine {
         });
         this.playingCues.clear();
         this.clearPendingTimeouts();
+
+        // Clear all delay timeouts
+        this.delayTimeouts.forEach(id => clearTimeout(id));
+        this.delayTimeouts.clear();
+
         if (window.app && window.app.ui) window.app.ui.updateStatus();
     }
 
@@ -2092,15 +2127,18 @@ class ProjectState {
 
         this.saveUndoState(`Edit ${field} for Cue ${cueNumber}`);
 
-        // Type Casting
-        const numericFields = ['volume', 'pan', 'loop', 'fadeInTime', 'fadeOutTime', 'startTime', 'endTime', 'delay', 'autoContinueDelay', 'autoFollowDelay'];
+        const conversionFields = ['delay', 'fadeInTime', 'fadeOutTime'];
+        const floatFields = ['startTime', 'endTime', 'volume', 'pan', 'loop'];
 
-        if (numericFields.includes(field)) {
+        if (conversionFields.includes(field)) {
+            const num = parseFloat(value);
+            if (!isNaN(num)) {
+                cue[field] = num * 1000; // Seconds -> Milliseconds
+            }
+        } else if (floatFields.includes(field)) {
             const num = parseFloat(value);
             if (!isNaN(num)) {
                 cue[field] = num;
-            } else {
-                console.warn(`Invalid number for ${field}: ${value}`);
             }
         } else if (field === 'file') {
             cue.file = value;
