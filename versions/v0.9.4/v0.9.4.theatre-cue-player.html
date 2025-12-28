@@ -1636,14 +1636,16 @@ class AudioEngine {
             this.delayTimeouts.delete(cueNumber);
         }
 
-        // IMMEDIATE: Notify UI and Trigger Auto-Continue
+        // IMMEDIATE: Notify UI (Visuals turn green immediately)
         if (window.app && window.app.ui) {
             window.app.ui.onCueStarted(cue.cueNumber);
         }
-        this.handleContinue(cue);
 
         // HANDLE DELAY (Pre-Wait)
         if (cue.delay && cue.delay > 0) {
+            // QLab Style: If delay exists, we Auto-Continue immediately, even if audio waits.
+            this.handleContinue(cue);
+
             const timeoutId = setTimeout(() => {
                 this.delayTimeouts.delete(cueNumber);
                 this.triggerCuePlayback(cue);
@@ -1653,7 +1655,9 @@ class AudioEngine {
             return;
         }
 
-        this.triggerCuePlayback(cue);
+        // NO DELAY: Ensure playback starts (and registers) BEFORE firing Auto-Continue
+        await this.triggerCuePlayback(cue);
+        this.handleContinue(cue);
     }
 
     // Split playback logic for delay handling
@@ -1786,38 +1790,50 @@ class AudioEngine {
 
     executeFadeCue(cue) {
         if (!cue.target) return;
-        const targetInstances = this.playingCues.get(cue.target);
-        if (!targetInstances || targetInstances.length === 0) return;
+        let targetInstances = this.playingCues.get(cue.target);
+        if (!targetInstances) targetInstances = this.playingCues.get(String(cue.target));
+        if (!targetInstances) targetInstances = this.playingCues.get(Number(cue.target));
 
-        const duration = (cue.fadeDuration || 0) / 1000;
-        const targetVol = this.volumeToGain(cue.targetVolume !== undefined ? cue.targetVolume : 0);
-        const now = this.ctx.currentTime;
-
-        if (window.app && window.app.ui && !this.playingCues.has(cue.cueNumber)) {
-            // Only update UI if we haven't already (though playCue handles start, we might need to double check state?)
-            // Actually playCue handled onCueStarted. 
-            // For fades, we don't re-trigger it.
+        if (!targetInstances || targetInstances.length === 0) {
+            console.warn(`Fade Cue ${cue.cueNumber}: Target ${cue.target} not found in playing cues.`);
+            return;
         }
 
+        const duration = (cue.fadeInTime || 0) / 1000;
+        // Fix: Default to 100% if undefined (Matches UI display). formerly defaulted to 0 which caused silent fails.
+        const targetVolPercent = cue.volume !== undefined ? cue.volume : 100;
+        const targetGain = this.volumeToGain(targetVolPercent);
+        const now = this.ctx.currentTime;
+
         targetInstances.forEach(inst => {
+            // --- VOLUME FADE ---
             if (inst.isFading) {
                 inst.gainNode.gain.cancelScheduledValues(now);
             }
             inst.isFading = true;
 
-            const currentVal = inst.gainNode.gain.value;
-
+            const currentGain = inst.gainNode.gain.value;
             inst.gainNode.gain.cancelScheduledValues(now);
-            inst.gainNode.gain.setValueAtTime(currentVal, now);
+            inst.gainNode.gain.setValueAtTime(currentGain, now);
 
-            if (cue.stopTarget) {
-                this.createSCurveFade(inst.gainNode, currentVal, 0, duration, now);
+            if (targetVolPercent === 0) {
+                // Implicit Stop: Fade to 0 and Stop
+                this.createSCurveFade(inst.gainNode, currentGain, 0, duration, now);
                 setTimeout(() => {
                     try { inst.source.stop(); } catch (e) { }
                 }, duration * 1000);
             } else {
-                this.createSCurveFade(inst.gainNode, currentVal, targetVol, duration, now);
+                // Regular Fade
+                this.createSCurveFade(inst.gainNode, currentGain, targetGain, duration, now);
                 setTimeout(() => { inst.isFading = false; }, duration * 1000);
+            }
+
+            // --- PAN FADE ---
+            if (cue.pan !== undefined && inst.pannerNode) {
+                const targetPan = Math.max(-1, Math.min(1, cue.pan / 100));
+                inst.pannerNode.pan.cancelScheduledValues(now);
+                inst.pannerNode.pan.setValueAtTime(inst.pannerNode.pan.value, now);
+                inst.pannerNode.pan.linearRampToValueAtTime(targetPan, now + duration);
             }
         });
 
@@ -1825,7 +1841,7 @@ class AudioEngine {
         setTimeout(() => {
             if (window.app && window.app.ui) window.app.ui.onCueEnded(cue.cueNumber);
             this.handleFollow(cue);
-        }, cue.fadeDuration || 0);
+        }, cue.fadeInTime || 0);
 
         // Removed handleContinue (moved to playCue)
     }
@@ -2822,7 +2838,7 @@ class UIController {
                     return vol;
                 })()}%</td>
                 <td onclick="${editMode ? `app.ui.editField('pan', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${this.getPanDisplay(cue.pan || 0)}</td>
-                <td onclick="${editMode && cue.type === 'fade' ? `app.ui.editField('endTime', '${cue.cueNumber}')` : ''}">${cue.type === 'fade' ? this.formatTime(cue.endTime) + ' fade' : (() => {
+                <td onclick="${editMode && cue.type === 'fade' ? `app.ui.editField('fadeInTime', '${cue.cueNumber}')` : ''}">${cue.type === 'fade' ? this.formatSecondsFromMs(cue.fadeInTime) + ' fade' : (() => {
                     const duration = this.calculateCueDuration(cue);
                     const loopCount = cue.loop || 1;
                     if (loopCount >= 999) return this.formatDuration(duration) + ' ∞';
@@ -3128,6 +3144,11 @@ class UIController {
 
         let currentVal = cue[field];
         if (currentVal === undefined) currentVal = '';
+
+        // Fix: Convert milliseconds to seconds for display in the prompt
+        if (['delay', 'fadeInTime', 'fadeOutTime'].includes(field)) {
+            currentVal = (currentVal || 0) / 1000;
+        }
 
         const newVal = prompt(`Enter new value for ${field}: `, currentVal);
         if (newVal !== null) { // Check for null (User cancelled)
