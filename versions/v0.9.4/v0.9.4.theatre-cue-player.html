@@ -1698,16 +1698,22 @@ class AudioEngine {
 
         const gainNode = this.ctx.createGain();
         const fadeGain = this.ctx.createGain();
+        const panner = this.ctx.createStereoPanner(); // Create Panner
 
         source.connect(fadeGain);
         fadeGain.connect(gainNode);
-        gainNode.connect(this.masterGain);
+        gainNode.connect(panner);          // Connect Gain -> Panner
+        panner.connect(this.masterGain);   // Connect Panner -> Master
 
         // Initial Volume
+
         const vol = (cue.volume !== undefined) ? cue.volume : 100;
         gainNode.gain.value = this.volumeToGain(vol);
 
-        // Output Assignment (Pan/Balance) could go here (StereoPannerNode) but v0.9.2 didn't strictly implement panning logic in playCue
+        // Pan Setting
+        let panVal = (cue.pan !== undefined) ? cue.pan / 100 : 0;
+        panVal = Math.max(-1, Math.min(1, panVal)); // Clamp -1 to 1
+        panner.pan.value = panVal;
 
         // Timing
         let startTime = cue.startTime || 0;
@@ -1746,6 +1752,7 @@ class AudioEngine {
             source: source,
             gainNode: gainNode,
             fadeNode: fadeGain,
+            pannerNode: panner,
             startTime: now,
             cueNumber: cue.cueNumber,
             id: instanceId,
@@ -3114,6 +3121,11 @@ class UIController {
         const cue = this.app.state.getCue(id);
         if (!cue) return;
 
+        if (field === 'pan') {
+            this.showPanModal(id, cue.pan || 0);
+            return;
+        }
+
         let currentVal = cue[field];
         if (currentVal === undefined) currentVal = '';
 
@@ -3161,6 +3173,95 @@ class UIController {
                 this.app.state.updateCueData(id, 'target', selectedCueNum);
             });
         }
+    }
+
+    applyPan(cueNumber, value) {
+        this.app.state.updateCueData(cueNumber, 'pan', value);
+        const modal = document.getElementById('panModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.focus();
+        }
+    }
+
+    applyCustomPan(cueNumber) {
+        const input = document.getElementById('customPanInput');
+        if (!input) return;
+        let val = parseFloat(input.value);
+        if (isNaN(val)) return;
+        if (val < -100) val = -100;
+        if (val > 100) val = 100;
+
+        this.applyPan(cueNumber, val);
+    }
+
+    showPanModal(cueNumber, currentVal) {
+        let modal = document.getElementById('panModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'panModal';
+            // Inline styles for simplicity, similar to selectionModal logic but unique
+            modal.style.cssText = `
+                display: none;
+                position: fixed;
+                z-index: 10001;
+                left: 0; top: 0; width: 100%; height: 100%;
+                background-color: rgba(0,0,0,0.6);
+                align-items: center;
+                justify-content: center;
+            `;
+            modal.innerHTML = `
+                <div style="background: #333; color: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                    <h3 id="panModalTitle">Set Pan</h3>
+                    <div style="display: grid; gap: 10px; margin-top: 20px;">
+                        <button class="pan-btn" data-val="-100">-100 (Full Left)</button>
+                        <button class="pan-btn" data-val="-50">-50 (Mid Left)</button>
+                        <button class="pan-btn" data-val="0">Center (0)</button>
+                        <button class="pan-btn" data-val="50">50 (Mid Right)</button>
+                        <button class="pan-btn" data-val="100">100 (Full Right)</button>
+                    </div>
+                    <div style="margin-top: 20px; border-top: 1px solid #555; padding-top: 15px;">
+                        <label>Custom: </label>
+                        <input type="number" id="customPanInput" min="-100" max="100" style="width: 60px; padding: 5px;">
+                        <button id="customPanBtn" style="padding: 5px 15px; margin-left: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Set</button>
+                    </div>
+                    <p style="font-size: 0.8em; color: #aaa; margin-top: 10px;">Negative = Left. Positive = Right.</p>
+                    <button onclick="document.getElementById('panModal').style.display='none'; document.body.focus();" style="margin-top: 15px; background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Cancel</button>
+                </div>
+            `;
+
+            // Inject styles for pan-btn inside the method or assume standard button styles?
+            const style = document.createElement('style');
+            style.innerHTML = `
+                .pan-btn {
+                    padding: 12px;
+                    border: 1px solid #555;
+                    background: #343a40;
+                    color: white;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 1rem;
+                }
+                .pan-btn:active { background: #007bff; }
+            `;
+            document.head.appendChild(style);
+
+            document.body.appendChild(modal);
+        }
+
+        // Update Dynamic Content
+        document.getElementById('panModalTitle').textContent = `Set Pan for Cue ${cueNumber}`;
+        document.getElementById('customPanInput').value = currentVal;
+
+        // Bind Buttons (avoid inline onclick for cleanliness, cleaner helper use)
+        const btns = modal.querySelectorAll('.pan-btn');
+        btns.forEach(btn => {
+            btn.onclick = () => this.applyPan(cueNumber, parseInt(btn.dataset.val));
+        });
+
+        document.getElementById('customPanBtn').onclick = () => this.applyCustomPan(cueNumber);
+
+        modal.style.display = 'flex';
     }
 
     showSelectionModal(title, options, callback) {
