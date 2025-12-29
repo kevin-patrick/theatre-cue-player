@@ -1696,7 +1696,7 @@ class AudioEngine {
     }
 
 
-    playAudioBuffer(cue) {
+    playAudioBuffer(cue, remainingLoops) {
         const source = this.ctx.createBufferSource();
         source.buffer = cue.audioBuffer;
 
@@ -1720,13 +1720,27 @@ class AudioEngine {
         panner.pan.value = panVal;
 
         // Timing
+        // Timing
         let startTime = cue.startTime || 0;
-        let duration = cue.audioBuffer.duration - startTime - (cue.endTime || 0);
-        if (duration <= 0) duration = cue.audioBuffer.duration - startTime;
+        // Trim end from buffer duration if endTime is set
+        let singleDuration = cue.audioBuffer.duration - startTime;
+        if (cue.endTime && cue.endTime > 0) {
+            singleDuration = cue.endTime - startTime;
+        }
+        if (singleDuration <= 0) singleDuration = cue.audioBuffer.duration - startTime;
+
+        // Loop Configuration (Discrete)
+        const totalLoops = (cue.loop !== undefined && cue.loop > 0) ? cue.loop : 1;
+
+        // If remainingLoops is not provided, it's the first run (start of chain)
+        let loopsRemaining = (remainingLoops !== undefined) ? remainingLoops : totalLoops;
+        const isInfinite = totalLoops >= 999;
+
+        console.log(`[LoopDebug] Cue ${cue.cueNumber}: Playing loop. Total: ${totalLoops}, Remaining: ${loopsRemaining}, Infinite: ${isInfinite}`);
 
         const now = this.ctx.currentTime;
 
-        // Fade In
+        // Fade In (Always triggers on start of EACH loop)
         if (cue.fadeInTime > 0) {
             fadeGain.gain.setValueAtTime(0, now);
             this.createSCurveFade(fadeGain, 0, 1, cue.fadeInTime / 1000, now);
@@ -1734,21 +1748,57 @@ class AudioEngine {
             fadeGain.gain.setValueAtTime(1, now);
         }
 
-        // Fade Out (Scheduled)
+        // Fade Out (Scheduled at end of THIS loop)
         if (cue.fadeOutTime > 0) {
             const fadeOutDuration = cue.fadeOutTime / 1000;
-            // Check if fade out is longer than duration?
-            const fadeOutStart = now + duration - fadeOutDuration;
+            const fadeOutStart = now + singleDuration - fadeOutDuration;
 
+            // Only schedule fade out if it fits
             if (fadeOutStart > now) {
-                // Schedule the fade out
                 this.createSCurveFade(fadeGain, 1, 0, fadeOutDuration, fadeOutStart);
-            } else {
-                // Already late, possibly start faded out?
             }
         }
 
-        source.start(0, startTime, duration);
+        source.start(0, startTime, singleDuration);
+
+        // Handle Loop Recursion via onended
+        source.onended = () => {
+            console.log(`[LoopDebug] Cue ${cue.cueNumber}: Source Ended. loopsRemaining before decr: ${loopsRemaining}`);
+            // Check if we were stopped manually
+            if (this.stopAllCalled) return;
+            if (!this.playingCues.has(cue.cueNumber)) {
+                console.log(`[LoopDebug] Cue ${cue.cueNumber}: Stopped actively. Aborting loop.`);
+                return;
+            }
+
+            // Decrement loop (if not infinite)
+            if (!isInfinite) {
+                loopsRemaining--;
+            }
+
+            if (isInfinite || loopsRemaining > 0) {
+                // Schedule next loop after delay
+                const delay = cue.delay || 0;
+                if (delay > 0) {
+                    const timeoutId = setTimeout(() => {
+                        this.delayTimeouts.delete(cue.cueNumber);
+                        if (this.playingCues.has(cue.cueNumber)) {
+                            this.playAudioBuffer(cue, loopsRemaining);
+                        }
+                    }, delay);
+                    this.delayTimeouts.set(cue.cueNumber, timeoutId);
+                } else {
+                    setTimeout(() => {
+                        if (this.playingCues.has(cue.cueNumber)) this.playAudioBuffer(cue, loopsRemaining);
+                    }, 0);
+                }
+            } else {
+                // All loops done
+                this.stopCue(cue.cueNumber); // Clean up instances
+                if (window.app && window.app.ui) window.app.ui.onCueEnded(cue.cueNumber);
+                this.handleFollow(cue);
+            }
+        };
 
         const instanceId = Date.now() + Math.random();
 
@@ -1768,23 +1818,7 @@ class AudioEngine {
         }
         this.playingCues.get(cue.cueNumber).push(instanceData);
 
-        source.onended = () => {
-            if (this.playingCues.has(cue.cueNumber)) {
-                const list = this.playingCues.get(cue.cueNumber);
-                const idx = list.findIndex(i => i.id === instanceId);
-                if (idx > -1) list.splice(idx, 1);
 
-                if (list.length === 0) {
-                    this.playingCues.delete(cue.cueNumber);
-                    if (this.onCueEnded) {
-                        this.onCueEnded(cue.cueNumber);
-                    } else if (window.app && window.app.ui) {
-                        window.app.ui.onCueEnded(cue.cueNumber);
-                    }
-                    this.handleFollow(cue);
-                }
-            }
-        };
         // Removed immediate triggers here (moved to playCue)
     }
 
