@@ -1546,8 +1546,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
     <script>
 
-// --- CORE ---
-
 /**
  * Core Classes for Theatre Cue Player v0.9.4
  */
@@ -1622,40 +1620,60 @@ class AudioEngine {
         const cue = this.state.getCue(cueNumber);
         if (!cue) return;
 
+        const cueKey = String(cue.cueNumber); // Enforce String Key
+
         // Reset Stop All State
         if (this.stopAllCalled) this.clearPendingTimeouts();
 
-        // Stop existing instances logic
-        if (this.playingCues.has(cueNumber)) {
-            this.stopCue(cueNumber);
+        // Stop existing instances logic (Restart behavior)
+        if (this.playingCues.has(cueKey)) {
+            this.stopCue(cueKey);
         }
 
-        // Clear any existing pre-wait delay for this cue
-        if (this.delayTimeouts.has(cueNumber)) {
-            clearTimeout(this.delayTimeouts.get(cueNumber));
-            this.delayTimeouts.delete(cueNumber);
+        // Clear any existing pre-wait delay
+        if (this.delayTimeouts.has(cueKey)) {
+            clearTimeout(this.delayTimeouts.get(cueKey));
+            this.delayTimeouts.delete(cueKey);
         }
 
-        // IMMEDIATE: Notify UI (Visuals turn green immediately)
+        // --- CREATE SESSION & MASTER GAIN ---
+        // We create it HERE to ensure it persists across loop iterations
+        const masterGain = this.ctx.createGain();
+        masterGain.connect(this.masterGain);
+        masterGain.gain.value = 1;
+
+        const session = {
+            type: cue.type, // 'audio' or 'fade'
+            masterGain: masterGain,
+            instances: [],
+            isStopping: false
+        };
+        this.playingCues.set(cueKey, session);
+        console.log(`[SessionDebug] Created Session for Cue ${cueKey}. MG Value: ${masterGain.gain.value}`);
+
+
+        // IMMEDIATE: Notify UI
         if (window.app && window.app.ui) {
             window.app.ui.onCueStarted(cue.cueNumber);
         }
 
         // HANDLE DELAY (Pre-Wait)
         if (cue.delay && cue.delay > 0) {
-            // QLab Style: If delay exists, we Auto-Continue immediately, even if audio waits.
             this.handleContinue(cue);
 
             const timeoutId = setTimeout(() => {
-                this.delayTimeouts.delete(cueNumber);
-                this.triggerCuePlayback(cue);
+                this.delayTimeouts.delete(cueKey);
+                // Validate session still exists (wasn't stopped during delay)
+                if (this.playingCues.has(cueKey)) {
+                    this.triggerCuePlayback(cue);
+                }
             }, cue.delay);
 
-            this.delayTimeouts.set(cueNumber, timeoutId);
+            this.delayTimeouts.set(cueKey, timeoutId);
             return;
         }
 
-        // NO DELAY: Ensure playback starts (and registers) BEFORE firing Auto-Continue
+        // NO DELAY
         await this.triggerCuePlayback(cue);
         this.handleContinue(cue);
     }
@@ -1697,50 +1715,69 @@ class AudioEngine {
 
 
     playAudioBuffer(cue, remainingLoops) {
+        const cueKey = String(cue.cueNumber);
+
+        // --- SESSION RETRIEVAL ---
+        let session = this.playingCues.get(cueKey);
+
+        // Safety Fallback (Should have been created in playCue)
+        if (!session) {
+            console.warn(`[SessionWarning] Session for Cue ${cueKey} missing in playAudioBuffer. Re-creating.`);
+            const masterGain = this.ctx.createGain();
+            masterGain.connect(this.masterGain);
+            masterGain.gain.value = 1;
+
+            session = {
+                type: 'audio',
+                masterGain: masterGain,
+                instances: [],
+                isStopping: false
+            };
+            this.playingCues.set(cueKey, session);
+        } else {
+            console.log(`[SessionDebug] Reusing Session ${cueKey}. MG Value: ${session.masterGain.gain.value}. isStopping: ${session.isStopping}`);
+        }
+
         const source = this.ctx.createBufferSource();
         source.buffer = cue.audioBuffer;
 
         const gainNode = this.ctx.createGain();
         const fadeGain = this.ctx.createGain();
-        const panner = this.ctx.createStereoPanner(); // Create Panner
+        const panner = this.ctx.createStereoPanner();
 
         source.connect(fadeGain);
         fadeGain.connect(gainNode);
-        gainNode.connect(panner);          // Connect Gain -> Panner
-        panner.connect(this.masterGain);   // Connect Panner -> Master
+        gainNode.connect(panner);
+        // CONNECT TO SESSION MASTER GAIN (Persistent)
+        panner.connect(session.masterGain);
 
-        // Initial Volume
-
+        // Initial Volume relative to MasterGain
         const vol = (cue.volume !== undefined) ? cue.volume : 100;
         gainNode.gain.value = this.volumeToGain(vol);
 
         // Pan Setting
         let panVal = (cue.pan !== undefined) ? cue.pan / 100 : 0;
-        panVal = Math.max(-1, Math.min(1, panVal)); // Clamp -1 to 1
+        panVal = Math.max(-1, Math.min(1, panVal));
         panner.pan.value = panVal;
 
         // Timing
-        // Timing
         let startTime = cue.startTime || 0;
-        // Trim end from buffer duration if endTime is set
         let singleDuration = cue.audioBuffer.duration - startTime;
         if (cue.endTime && cue.endTime > 0) {
             singleDuration = cue.endTime - startTime;
         }
         if (singleDuration <= 0) singleDuration = cue.audioBuffer.duration - startTime;
 
-        // Loop Configuration (Discrete)
+        // Loop Configuration
         const totalLoops = (cue.loop !== undefined && cue.loop > 0) ? cue.loop : 1;
-
-        // If remainingLoops is not provided, it's the first run (start of chain)
         let loopsRemaining = (remainingLoops !== undefined) ? remainingLoops : totalLoops;
         const isInfinite = totalLoops >= 999;
 
-        console.log(`[LoopDebug] Cue ${cue.cueNumber}: Playing loop. Total: ${totalLoops}, Remaining: ${loopsRemaining}, Infinite: ${isInfinite}`);
+        console.log(`[LoopDebug] Cue ${cueKey}: Playing loop. Total: ${totalLoops}, Remaining: ${loopsRemaining}, Infinite: ${isInfinite}`);
 
         const now = this.ctx.currentTime;
 
-        // Fade In (Always triggers on start of EACH loop)
+        // Fade In (Local - per loop)
         if (cue.fadeInTime > 0) {
             fadeGain.gain.setValueAtTime(0, now);
             this.createSCurveFade(fadeGain, 0, 1, cue.fadeInTime / 1000, now);
@@ -1748,12 +1785,10 @@ class AudioEngine {
             fadeGain.gain.setValueAtTime(1, now);
         }
 
-        // Fade Out (Scheduled at end of THIS loop)
+        // Fade Out (Local - per loop)
         if (cue.fadeOutTime > 0) {
             const fadeOutDuration = cue.fadeOutTime / 1000;
             const fadeOutStart = now + singleDuration - fadeOutDuration;
-
-            // Only schedule fade out if it fits
             if (fadeOutStart > now) {
                 this.createSCurveFade(fadeGain, 1, 0, fadeOutDuration, fadeOutStart);
             }
@@ -1761,137 +1796,101 @@ class AudioEngine {
 
         source.start(0, startTime, singleDuration);
 
-        // Handle Loop Recursion via onended
+        // --- RECURSION HANDLER ---
         source.onended = () => {
-            console.log(`[LoopDebug] Cue ${cue.cueNumber}: Source Ended. loopsRemaining before decr: ${loopsRemaining}`);
-            // Check if we were stopped manually
+            console.log(`[LoopDebug] Cue ${cueKey}: Source Ended. loopsRemaining: ${loopsRemaining}. isStopping: ${session.isStopping}`);
+
             if (this.stopAllCalled) return;
-            if (!this.playingCues.has(cue.cueNumber)) {
-                console.log(`[LoopDebug] Cue ${cue.cueNumber}: Stopped actively. Aborting loop.`);
+
+            // Check if session still exists (wasn't hard stopped)
+            if (!this.playingCues.has(cueKey)) {
+                console.log(`[LoopDebug] Cue ${cueKey}: Session gone. Stopping.`);
                 return;
             }
 
-            // Decrement loop (if not infinite)
-            if (!isInfinite) {
-                loopsRemaining--;
-            }
+            // Loop Decrement
+            if (!isInfinite) loopsRemaining--;
 
             if (isInfinite || loopsRemaining > 0) {
-                // Schedule next loop after delay
                 const delay = cue.delay || 0;
                 if (delay > 0) {
                     const timeoutId = setTimeout(() => {
-                        this.delayTimeouts.delete(cue.cueNumber);
-                        if (this.playingCues.has(cue.cueNumber)) {
+                        this.delayTimeouts.delete(cueKey);
+                        if (this.playingCues.has(cueKey)) {
                             this.playAudioBuffer(cue, loopsRemaining);
                         }
                     }, delay);
-                    this.delayTimeouts.set(cue.cueNumber, timeoutId);
+                    this.delayTimeouts.set(cueKey, timeoutId);
                 } else {
                     setTimeout(() => {
-                        if (this.playingCues.has(cue.cueNumber)) this.playAudioBuffer(cue, loopsRemaining);
+                        if (this.playingCues.has(cueKey)) this.playAudioBuffer(cue, loopsRemaining);
                     }, 0);
                 }
             } else {
-                // All loops done
-                this.stopCue(cue.cueNumber); // Clean up instances
-                if (window.app && window.app.ui) window.app.ui.onCueEnded(cue.cueNumber);
-                this.handleFollow(cue);
+                // All loops done normally
+                this.stopCue(cueKey);
+                if (!session.isStopping) {
+                    if (window.app && window.app.ui) window.app.ui.onCueEnded(cue.cueNumber);
+                    this.handleFollow(cue);
+                }
             }
         };
 
         const instanceId = Date.now() + Math.random();
-
         const instanceData = {
-            source: source,
-            gainNode: gainNode,
-            fadeNode: fadeGain,
-            pannerNode: panner,
-            startTime: now,
-            cueNumber: cue.cueNumber,
-            id: instanceId,
-            isFading: false
+            source, gainNode, fadeNode: fadeGain, pannerNode: panner,
+            id: instanceId, isFading: false
         };
-
-        if (!this.playingCues.has(cue.cueNumber)) {
-            this.playingCues.set(cue.cueNumber, []);
-        }
-        this.playingCues.get(cue.cueNumber).push(instanceData);
-
-
-        // Removed immediate triggers here (moved to playCue)
+        session.instances.push(instanceData);
     }
 
     executeFadeCue(cue) {
         if (!cue.target) return;
-        let targetInstances = this.playingCues.get(cue.target);
-        if (!targetInstances) targetInstances = this.playingCues.get(String(cue.target));
-        if (!targetInstances) targetInstances = this.playingCues.get(Number(cue.target));
+        const targetKey = String(cue.target);
 
-        if (!targetInstances || targetInstances.length === 0) {
-            console.warn(`Fade Cue ${cue.cueNumber}: Target ${cue.target} not found in playing cues.`);
+        // Find Target Session
+        let targetSession = this.playingCues.get(targetKey);
+
+        if (!targetSession) {
+            console.warn(`Fade Cue ${cue.cueNumber}: Target ${targetKey} not found.`);
             return;
         }
 
         const duration = (cue.fadeInTime || 0) / 1000;
-        // Fix: Default to 100% if undefined (Matches UI display). formerly defaulted to 0 which caused silent fails.
         const targetVolPercent = cue.volume !== undefined ? cue.volume : 100;
         const targetGain = this.volumeToGain(targetVolPercent);
         const now = this.ctx.currentTime;
 
-        targetInstances.forEach(inst => {
-            // --- VOLUME FADE ---
-            if (inst.isFading) {
-                inst.gainNode.gain.cancelScheduledValues(now);
-            }
-            inst.isFading = true;
-
-            const currentGain = inst.gainNode.gain.value;
-            inst.gainNode.gain.cancelScheduledValues(now);
-            inst.gainNode.gain.setValueAtTime(currentGain, now);
+        // Apply Fade to MASTER GAIN (Global for that cue)
+        if (targetSession.masterGain) {
+            const mg = targetSession.masterGain;
+            mg.gain.cancelScheduledValues(now);
+            mg.gain.setValueAtTime(mg.gain.value, now);
 
             if (targetVolPercent === 0) {
-                // Implicit Stop: Fade to 0 and Stop
-                this.createSCurveFade(inst.gainNode, currentGain, 0, duration, now);
+                // Fade to Silence
+                this.createSCurveFade(mg, mg.gain.value, 0, duration, now);
+                // Schedule Stop of the whole session
                 setTimeout(() => {
-                    try { inst.source.stop(); } catch (e) { }
+                    this.stopCue(targetKey);
                 }, duration * 1000);
             } else {
-                // Regular Fade
-                this.createSCurveFade(inst.gainNode, currentGain, targetGain, duration, now);
-                setTimeout(() => { inst.isFading = false; }, duration * 1000);
+                this.createSCurveFade(mg, mg.gain.value, targetGain, duration, now);
             }
+        }
 
-            // --- PAN FADE ---
-            if (cue.pan !== undefined && inst.pannerNode) {
-                const targetPan = Math.max(-1, Math.min(1, cue.pan / 100));
-                inst.pannerNode.pan.cancelScheduledValues(now);
-                inst.pannerNode.pan.setValueAtTime(inst.pannerNode.pan.value, now);
-                inst.pannerNode.pan.linearRampToValueAtTime(targetPan, now + duration);
-            }
-        });
-
-        // Register Fade Cue so it can be stopped (Paused)
-        // Wrapped in Array to match playingCues schema (Map<id, Array>)
-        // Include dummy source object to prevent crashes in stopAll
-        const fadeEntry = {
+        // Register Fade Cue Session (for pausing/holding)
+        const fadeSession = {
             type: 'fade',
-            targets: targetInstances,
-            endTime: now + duration,
-            source: {
-                stop: () => {
-                    // Dummy stop for stopAll compatibility. 
-                    // Actual stop logic handled in stopCue specific check or irrelevant if audio stops.
-                }
-            }
+            targetSession: targetSession, // Reference to audio session
+            endTime: now + duration
         };
-        this.playingCues.set(cue.cueNumber, [fadeEntry]);
+        this.playingCues.set(String(cue.cueNumber), fadeSession);
 
-        // Auto-complete the fade cue itself visually (and clean up registration)
         setTimeout(() => {
-            // Only finish if still playing (wasn't stopped)
-            if (this.playingCues.has(cue.cueNumber)) {
-                this.playingCues.delete(cue.cueNumber);
+            const MyKey = String(cue.cueNumber);
+            if (this.playingCues.has(MyKey)) {
+                this.playingCues.delete(MyKey);
                 if (window.app && window.app.ui) window.app.ui.onCueEnded(cue.cueNumber);
                 this.handleFollow(cue);
             }
@@ -1899,95 +1898,83 @@ class AudioEngine {
     }
 
     stopCue(cueNumber) {
+        const cueKey = String(cueNumber);
+
         // Clear pending pre-wait loops/delays
-        if (this.delayTimeouts.has(cueNumber)) {
-            clearTimeout(this.delayTimeouts.get(cueNumber));
-            this.delayTimeouts.delete(cueNumber);
+        if (this.delayTimeouts.has(cueKey)) {
+            clearTimeout(this.delayTimeouts.get(cueKey));
+            this.delayTimeouts.delete(cueKey);
         }
 
-        if (this.playingCues.has(cueNumber)) {
-            const list = this.playingCues.get(cueNumber);
+        if (this.playingCues.has(cueKey)) {
+            const session = this.playingCues.get(cueKey);
 
-            list.forEach(inst => {
-                // SPECIAL FADE STOP LOGIC (Hold Volume)
-                if (inst.type === 'fade') {
-                    const now = this.ctx.currentTime;
-                    inst.targets.forEach(targetInst => {
-                        if (targetInst.gainNode) {
-                            targetInst.gainNode.gain.cancelScheduledValues(now);
-                            targetInst.gainNode.gain.setValueAtTime(targetInst.gainNode.gain.value, now);
-                            targetInst.isFading = false;
-                        }
-                        if (targetInst.pannerNode) {
-                            targetInst.pannerNode.pan.cancelScheduledValues(now);
-                            targetInst.pannerNode.pan.setValueAtTime(targetInst.pannerNode.pan.value, now);
-                        }
+            if (session.type === 'fade') {
+                // HOLD FADE
+                const now = this.ctx.currentTime;
+                if (session.targetSession && session.targetSession.masterGain) {
+                    const mg = session.targetSession.masterGain;
+                    mg.gain.cancelScheduledValues(now);
+                    mg.gain.setValueAtTime(mg.gain.value, now);
+                }
+            } else {
+                // STOP AUDIO SESSION
+                if (session.instances) {
+                    session.instances.forEach(inst => {
+                        try { if (inst.source) inst.source.stop(); } catch (e) { }
                     });
                 }
-                // STANDARD AUDIO STOP LOGIC
-                else {
-                    try { if (inst.source) inst.source.stop(); } catch (e) { }
+                // Disconnect Master Gain
+                if (session.masterGain) {
+                    try { session.masterGain.disconnect(); } catch (e) { }
                 }
-            });
+            }
 
-            this.playingCues.delete(cueNumber);
-            if (window.app && window.app.ui) window.app.ui.onCueStopped(cueNumber);
+            this.playingCues.delete(cueKey);
+            if (window.app && window.app.ui) window.app.ui.onCueStopped(cueKey);
         }
     }
 
     fadeAndStop(cueNumber, duration = 5) {
-        if (!this.playingCues.has(cueNumber)) return;
-        const list = this.playingCues.get(cueNumber);
+        const cueKey = String(cueNumber);
+        if (!this.playingCues.has(cueKey)) return;
+        const session = this.playingCues.get(cueKey);
 
-        // Stop any pending loops/delays derived from this cue
-        if (this.delayTimeouts.has(cueNumber)) {
-            clearTimeout(this.delayTimeouts.get(cueNumber));
-            this.delayTimeouts.delete(cueNumber);
+        if (session.type === 'fade') return;
+
+        // Flag session as stopping (allows recursion to continue playing into the fade)
+        session.isStopping = true;
+
+        if (this.delayTimeouts.has(cueKey)) {
+            // Keep delays active so loop continues
         }
 
         const now = this.ctx.currentTime;
-        list.forEach(inst => {
-            if (inst.type === 'fade') return; // Don't double-fade a fade cue?
+        if (session.masterGain) {
+            const mg = session.masterGain;
+            mg.gain.cancelScheduledValues(now);
+            mg.gain.setValueAtTime(mg.gain.value, now);
+            this.createSCurveFade(mg, mg.gain.value, 0, duration, now);
 
-            if (inst.gainNode) {
-                inst.gainNode.gain.cancelScheduledValues(now);
-                inst.gainNode.gain.setValueAtTime(inst.gainNode.gain.value, now);
-                this.createSCurveFade(inst.gainNode, inst.gainNode.gain.value, 0, duration, now);
-
-                // Schedule stop of source
-                setTimeout(() => {
-                    try { if (inst.source) inst.source.stop(); } catch (e) { }
-                }, duration * 1000);
-            }
-        });
-
-        // We do NOT remove from playingCues immediately, so UI shows it active during fade.
-        // But we MUST ensure no "onended" loop triggers occur.
-        // We cleared delayTimeouts.
-        // The instances will eventually stop and trigger "onended".
-        // In "onended", it checks "playingCues.has".
-        // It WILL find it.
-        // It WILL try to recurse if loop logic dictates.
-        // Critical: We need to flag these instances as "Stopping".
-        // We can remove them from playingCues NOW?
-        // If we remove now, UI turns off.
-        // User wants visual feedback of fade? Usually yes.
-        // But if we remove, 'onended' aborts recursion. Safest.
-        // Let's remove now for safety and reliable "Action Button" behavior (Stop Loops).
-        // The Fade Out will continue audibly because we scheduled it on the Node.
-        // The UI will turn off (Green Light off). This effectively signals "Cue Sequence Ended / Loops Cancelled".
-        // Although audible tail remains.
-
-        this.playingCues.delete(cueNumber);
-        if (window.app && window.app.ui) window.app.ui.onCueStopped(cueNumber);
+            // Hard Stop after duration
+            setTimeout(() => {
+                this.stopCue(cueKey);
+            }, duration * 1000);
+        }
     }
 
     stopAll() {
         this.stopAllCalled = true;
-        this.playingCues.forEach((list) => {
-            list.forEach(inst => {
-                try { inst.source.stop(); } catch (e) { }
-            });
+        this.playingCues.forEach((session, id) => {
+            // Inline stop logic for safety
+            if (session.instances) {
+                session.instances.forEach(inst => {
+                    try { if (inst.source) inst.source.stop(); } catch (e) { }
+                });
+            }
+            if (session.masterGain) {
+                try { session.masterGain.disconnect(); } catch (e) { }
+            }
         });
         this.playingCues.clear();
         this.clearPendingTimeouts();
@@ -2001,19 +1988,31 @@ class AudioEngine {
 
     fadeAll() {
         const now = this.ctx.currentTime;
-        this.playingCues.forEach((list) => {
-            list.forEach(inst => {
-                inst.gainNode.gain.cancelScheduledValues(now);
-                inst.gainNode.gain.setValueAtTime(inst.gainNode.gain.value, now);
-                this.createSCurveFade(inst.gainNode, inst.gainNode.gain.value, 0, 5, now);
-                setTimeout(() => {
-                    try { inst.source.stop(); } catch (e) { }
-                }, 5000);
-            });
+        this.playingCues.forEach((session, cueNumber) => {
+            session.isStopping = true;
+
+            if (session.masterGain) {
+                const mg = session.masterGain;
+                mg.gain.cancelScheduledValues(now);
+                mg.gain.setValueAtTime(mg.gain.value, now);
+                this.createSCurveFade(mg, mg.gain.value, 0, 5, now);
+            }
+
+            // Also fade individual instances just in case (e.g., untracked or legacy)
+            if (session.instances) {
+                session.instances.forEach(inst => {
+                    if (inst.gainNode) {
+                        inst.gainNode.gain.cancelScheduledValues(now);
+                        inst.gainNode.gain.setValueAtTime(inst.gainNode.gain.value, now);
+                        this.createSCurveFade(inst.gainNode, inst.gainNode.gain.value, 0, 5, now);
+                    }
+                });
+            }
+
+            setTimeout(() => {
+                this.stopCue(cueNumber);
+            }, 5000);
         });
-        // Clear map after 5s? Or let onended handle it? 
-        // onended will fire when stop() is called.
-        // But we are setting a timeout to stop.
     }
 
     handleContinue(cue) {
@@ -2370,8 +2369,6 @@ class ProjectState {
         event.target.value = ''; // Reset
     }
 }
-
-// --- UI ---
 
 /**
  * UI Controller for Theatre Cue Player v0.9.4
@@ -3515,8 +3512,6 @@ class UIController {
     }
 }
 
-// --- WAVEFORM ---
-
 /**
  * Waveform Editor Logic for Theatre Cue Player v0.9.4
  * Extends UIController prototype
@@ -3641,8 +3636,6 @@ UIController.prototype.applyWaveformChanges = function () {
     this.closeWaveform();
     this.app.state.saveUndoState("Waveform Edit Cue " + cue.cueNumber);
 };
-
-// --- GLUE ---
 
 /**
  * Application Glue and Global Shims for Theatre Cue Player v0.9.4
@@ -3814,327 +3807,4 @@ document.addEventListener('DOMContentLoaded', () => {
     app.init();
 });
 
-    </script>
-
-    <!-- ===== TUTORIAL SYSTEM HTML (ADD AFTER HELP WINDOW) ===== -->
-    <div id="tutorialBackdrop" class="tutorial-backdrop"></div>
-    <div id="tutorialWindow" class="tutorial-window">
-        <div class="tutorial-progress" id="tutorialProgress">Step 1 of 6</div>
-        <h4 id="tutorialTitle">Tutorial Step</h4>
-        <p id="tutorialText">Tutorial content goes here.</p>
-        <div class="tutorial-buttons">
-            <button onclick="skipTutorial()" class="btn btn-secondary">Skip Tutorial</button>
-            <button onclick="nextTutorialStep()" id="tutorialNextBtn" class="btn btn-primary">Start Setup</button>
-        </div>
-    </div>
-
-    <!-- ===== EMBEDDED MANUAL ===== -->
-    <div id="manualModal" class="manual-modal">
-        <div class="manual-content">
-            <div class="manual-header">
-                <h2>🎭 Theatre Cue Player Manual</h2>
-                <button onclick="closeManual()" class="modal-close">&times;</button>
-            </div>
-            <div class="manual-body">
-                <h1>Theatre Cue Player Manual</h1>
-                <p><strong>Version 0.8.1 | July 22, 2025</strong></p>
-                <p><em>Educational audio cue management for theatre arts instruction</em><br>
-                <em>Designed by Kevin Patrick, Blinn College-Brenham Campus</em></p>
-
-                <h2>Educational Purpose</h2>
-                <p>Theatre Cue Player is designed primarily as a <strong>teaching tool</strong> for audio cue management in educational theatre programs. It provides a Chromebook-friendly, internet-free solution that allows students to learn professional audio cueing concepts without expensive software or complex installations. While capable of live performance use, its educational design prioritizes learning, safety, and accessibility over advanced professional features.</p>
-
-                <h3>Key Educational Benefits</h3>
-                <ul>
-                    <li><strong>No Internet Required</strong>: Works completely offline once loaded</li>
-                    <li><strong>Chromebook Compatible</strong>: Designed for standard educational devices</li>
-                    <li><strong>Student-Safe Design</strong>: Help mode and undo features prevent costly mistakes</li>
-                    <li><strong>Everything Visible</strong>: All parameters displayed for learning transparency</li>
-                    <li><strong>Professional Concepts</strong>: Teaches industry-standard workflows and terminology</li>
-                </ul>
-
-                <h2>Quick Start Guide</h2>
-
-                <h3>First Time Setup</h3>
-                <ol>
-                    <li><strong>Open</strong> theatre-cue-player.html in Chrome, Firefox, or Safari</li>
-                    <li><strong>Click</strong> "Tutorial" for guided first-time setup, OR:</li>
-                    <li><strong>Click</strong> "Load Audio Folder" → Select folder with your audio files</li>
-                    <li><strong>Click</strong> "Load Cue File" → Select existing .json cue file, OR "New Project"</li>
-                    <li><strong>Press</strong> spacebar or click "GO" to run your first cue</li>
-                </ol>
-
-                <h3>Basic Operation</h3>
-                <ul>
-                    <li><strong>Show Mode</strong>: Default performance mode with GO button and safety controls</li>
-                    <li><strong>Edit Mode</strong>: Click "Edit Mode" to modify cues (yellow warning state)</li>
-                    <li><strong>Help</strong>: Press F1 or click "HELP" for safe exploration mode</li>
-                    <li><strong>Emergency</strong>: "STOP ALL" button stops everything immediately</li>
-                </ul>
-
-                <h2>User Flow Chart</h2>
-                <pre>
-START
-  ↓
-WELCOME SCREEN
-  ↓
-First Time? → [YES] → Tutorial → Load Files → Test Cue → Ready!
-  ↓           [NO]
-Choose Action:
-  ├─ Load Audio Folder → Browse Files → Confirm Selection
-  ├─ Load Cue File → Select .json → Match to Audio
-  └─ New Project → Empty Cue List
-  ↓
-MAIN INTERFACE
-  ↓
-Learning Mode? → [YES] → Help Mode → Explore Safely → Practice
-  ↓             [NO]
-Performance Mode → GO Button → Run Show
-  ↓
-Edit Mode → Add/Edit Cues → Waveform Editor → Save Project → Show Mode
-                </pre>
-
-                <h2>Core Features</h2>
-
-                <h3>A. File Management</h3>
-                <ul>
-                    <li><strong>Audio Folder Loading</strong>: Recursively scans subfolders for audio files</li>
-                    <li><strong>Cue File System</strong>: .json files store cue lists independently from audio</li>
-                    <li><strong>Supported Formats</strong>: MP3, WAV, OGG, M4A, AAC, FLAC, WMA</li>
-                    <li><strong>File Independence</strong>: Audio library separate from show-specific cue files</li>
-                </ul>
-
-                <h3>B. Cue Types</h3>
-                <ol>
-                    <li><strong>Audio Cues</strong>: Play audio files with timing controls</li>
-                    <li><strong>Fade Cues</strong>: Adjust volume and pan/balance of running audio over time</li>
-                </ol>
-
-                <h3>C. Show Mode Features (Performance)</h3>
-                <ul>
-                    <li><strong>GO Button</strong>: Primary advance control (spacebar shortcut)</li>
-                    <li><strong>Individual Controls</strong>: Fade or stop any running cue independently</li>
-                    <li><strong>Emergency Stop</strong>: "STOP ALL" button for immediate silence</li>
-                    <li><strong>Assignable Hot Keys</strong>: Custom F-key shortcuts for specific cues</li>
-                    <li><strong>Progress Tracking</strong>: Visual feedback for running cues</li>
-                    <li><strong>Next Cue Display</strong>: Shows upcoming cue information</li>
-                    <li><strong>Student Safety</strong>: Individual cue control prevents common operator errors</li>
-                </ul>
-
-                <h3>D. Edit Mode Features (Learning/Setup)</h3>
-                <ul>
-                    <li><strong>Add/Delete Cues</strong>: Build and modify cue sequences</li>
-                    <li><strong>Inline Editing</strong>: Click any field to edit directly</li>
-                    <li><strong>Reorder Cues</strong>: Click arrow buttons to move cues up/down in sequence</li>
-                    <li><strong>File Assignment</strong>: Change target audio files per cue</li>
-                    <li><strong>Waveform Editor</strong>: Visual audio editing with start/end point selection</li>
-                    <li><strong>Timing Controls</strong>: Set fade in/out, start/end times, delays, pan/balance</li>
-                    <li><strong>Volume Controls</strong>: Master and per-cue volume adjustment</li>
-                    <li><strong>Automation</strong>: Auto Continue (immediate), Auto Follow (after completion)</li>
-                </ul>
-
-                <h3>E. Help & Learning System</h3>
-                <ul>
-                    <li><strong>Tutorial Mode</strong>: Guided first-time user setup</li>
-                    <li><strong>Context Help</strong>: Click ❓ icons for feature explanations</li>
-                    <li><strong>Safe Exploration</strong>: Help mode disables actions for training</li>
-                    <li><strong>Educational Language</strong>: Theatre terminology with clear explanations</li>
-                </ul>
-
-                <h2>Educational Workflow Guide</h2>
-
-                <h3>Classroom Setup</h3>
-                <ol>
-                    <li><strong>Prepare Audio Library</strong>: Organize class audio files in shared folder</li>
-                    <li><strong>Student Introduction</strong>: Use Tutorial mode for first-time students</li>
-                    <li><strong>Practice Projects</strong>: Create template cue files for exercises</li>
-                    <li><strong>Learning Mode</strong>: Use Help system for safe exploration</li>
-                </ol>
-
-                <h3>Student Learning Process</h3>
-                <ol>
-                    <li><strong>Load Example Files</strong>: Start with pre-built audio folder and cue file</li>
-                    <li><strong>Explore Interface</strong>: Use Help mode (F1) to learn features safely</li>
-                    <li><strong>Edit Practice</strong>: Modify existing cues to understand parameters</li>
-                    <li><strong>Create New</strong>: Build original cue sequences from scratch</li>
-                    <li><strong>Waveform Editing</strong>: Learn audio trimming and timing concepts</li>
-                </ol>
-
-                <h3>Assessment Preparation</h3>
-                <ol>
-                    <li><strong>Student Performance</strong>: Practice running cues in Show Mode</li>
-                    <li><strong>Error Recovery</strong>: Learn individual cue control for mistake correction</li>
-                    <li><strong>Hot Key Setup</strong>: Assign frequently-used cues to F-keys</li>
-                    <li><strong>Documentation</strong>: Save and organize student project files</li>
-                </ol>
-
-                <h3>Performance Mode (Advanced Students)</h3>
-                <ol>
-                    <li><strong>System Preparation</strong>: Turn off system sounds, disable internet, close other apps</li>
-                    <li><strong>Audio Check</strong>: Test all outputs and levels before audience</li>
-                    <li><strong>Distraction-Free</strong>: Use F11 fullscreen mode during performance</li>
-                    <li><strong>Focus Setup</strong>: Only essential controls visible in Show Mode</li>
-                    <li><strong>Safety Net</strong>: Individual cue controls for real-time corrections</li>
-                </ol>
-
-                <h2>Keyboard Shortcuts</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Key</th>
-                            <th>Action</th>
-                            <th>Mode</th>
-                            <th>Educational Use</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Spacebar</strong></td>
-                            <td>GO (advance to next cue)</td>
-                            <td>Show</td>
-                            <td>Primary control for performance</td>
-                        </tr>
-                        <tr>
-                            <td><strong>F1</strong></td>
-                            <td>Toggle Help</td>
-                            <td>Both</td>
-                            <td>Safe learning exploration</td>
-                        </tr>
-                        <tr>
-                            <td><strong>F11</strong></td>
-                            <td>Browser fullscreen</td>
-                            <td>Both</td>
-                            <td>Distraction-free performance</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Escape</strong></td>
-                            <td>Stop current cue</td>
-                            <td>Both</td>
-                            <td>Emergency stop individual cue</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Enter</strong></td>
-                            <td>Confirm edit</td>
-                            <td>Edit</td>
-                            <td>Complete field editing</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Tab</strong></td>
-                            <td>Navigate fields</td>
-                            <td>Edit</td>
-                            <td>Move between editable fields</td>
-                        </tr>
-                        <tr>
-                            <td><strong>F2-F10</strong></td>
-                            <td>Assignable Hot Keys</td>
-                            <td>Show</td>
-                            <td>Custom cue shortcuts (set in Edit)</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <h2>Technical Requirements</h2>
-
-                <h3>Educational Environment Specs</h3>
-                <ul>
-                    <li><strong>Browser</strong>: Chrome 88+, Firefox 85+, Safari 14+, Edge 88+</li>
-                    <li><strong>Chromebook</strong>: Optimized for 1366x768 standard educational displays</li>
-                    <li><strong>Network</strong>: No internet required after initial file loading</li>
-                    <li><strong>Memory</strong>: 4GB RAM minimum (standard on educational Chromebooks)</li>
-                    <li><strong>Storage</strong>: Local files only - no cloud dependencies</li>
-                </ul>
-
-                <h3>Audio File Guidelines for Education</h3>
-                <ul>
-                    <li><strong>Format</strong>: MP3 (320kbps) recommended for size/quality balance</li>
-                    <li><strong>Organization</strong>: Clear folder structure for shared class libraries</li>
-                    <li><strong>Naming</strong>: Descriptive filenames for easy student identification</li>
-                    <li><strong>Size</strong>: Keep under 10MB per file for Chromebook performance</li>
-                    <li><strong>Backup</strong>: Maintain copies on school network storage</li>
-                </ul>
-
-                <h3>Classroom Network Considerations</h3>
-                <ul>
-                    <li><strong>Offline Operation</strong>: Load files once, then disconnect if needed</li>
-                    <li><strong>Shared Storage</strong>: Audio libraries on network drives work well</li>
-                    <li><strong>Individual Projects</strong>: Student cue files saved to local storage</li>
-                    <li><strong>File Security</strong>: Browser-based file access respects school security policies</li>
-                </ul>
-
-                <h2>Troubleshooting for Educators</h2>
-
-                <h3>Common Student Issues</h3>
-
-                <p><strong>Q: "Tutorial button doesn't appear"</strong><br>
-                <strong>A:</strong> Student has used TCP before - tutorial only shows to new users. Click HELP (F1) for guided exploration instead.</p>
-
-                <p><strong>Q: "I clicked GO twice and messed up the show"</strong><br>
-                <strong>A:</strong> Use individual cue fade/stop buttons to fix running cues. This is why TCP includes these controls that other software lacks.</p>
-
-                <p><strong>Q: "My audio files disappeared"</strong><br>
-                <strong>A:</strong> Files still exist - click "Load Audio Folder" again to reconnect. Cue files and audio are separate for flexibility.</p>
-
-                <p><strong>Q: "Help mode is stuck"</strong><br>
-                <strong>A:</strong> Click "EXIT HELP" button. Help mode intentionally disables actions for safe learning.</p>
-
-                <p><strong>Q: "Waveform editor won't open"</strong><br>
-                <strong>A:</strong> Must be in Edit Mode first. Click "Edit Mode" then try opening waveform editor.</p>
-
-                <h3>Classroom Management</h3>
-                <ul>
-                    <li><strong>File Organization</strong>: Establish consistent folder naming for class projects</li>
-                    <li><strong>Version Control</strong>: Have students save multiple versions with dates</li>
-                    <li><strong>Sharing Work</strong>: Cue files (.json) can be shared; audio folders must be accessible to all</li>
-                    <li><strong>Assessment</strong>: Use project file analysis to evaluate student understanding</li>
-                </ul>
-
-                <h2>Glossary</h2>
-
-                <h3>Educational Theatre Terms</h3>
-                <ul>
-                    <li><strong>Audio Cue</strong>: A numbered instruction to play specific audio at a specific time</li>
-                    <li><strong>Cue Sequence</strong>: The ordered list of all audio events in a production</li>
-                    <li><strong>GO</strong>: The standard theatre command to execute the next cue (spacebar in TCP)</li>
-                    <li><strong>Hot Key</strong>: Programmable shortcut key for immediate cue access</li>
-                    <li><strong>Operator</strong>: Student or person responsible for running audio cues during performance</li>
-                </ul>
-
-                <h3>Audio Technical Terms</h3>
-                <ul>
-                    <li><strong>Auto Continue</strong>: Next cue starts immediately when current cue begins (0-second delay)</li>
-                    <li><strong>Auto Follow</strong>: Next cue starts when current cue finishes playing</li>
-                    <li><strong>Duration</strong>: How long audio plays (can be shorter than file length)</li>
-                    <li><strong>Fade In/Out</strong>: Gradual volume change at beginning/end of cue</li>
-                    <li><strong>Pan/Balance</strong>: Left-right audio positioning</li>
-                    <li><strong>Start/End Time</strong>: Specific points within audio file for playback</li>
-                    <li><strong>Waveform</strong>: Visual representation of audio showing peaks and quiet sections</li>
-                </ul>
-
-                <h3>Software Interface Terms</h3>
-                <ul>
-                    <li><strong>Edit Mode</strong>: Interface state allowing cue creation and modification</li>
-                    <li><strong>Help Mode</strong>: Safe exploration mode that disables all actions</li>
-                    <li><strong>Show Mode</strong>: Performance interface with simplified controls</li>
-                    <li><strong>Cue List</strong>: Table showing all cues in performance order</li>
-                    <li><strong>Individual Cue Control</strong>: Ability to fade or stop specific running cues</li>
-                    <li><strong>File Independence</strong>: Audio library separate from cue list storage</li>
-                </ul>
-
-                <h2>Support & Updates</h2>
-                <p><strong>Educational Contact</strong>: kevin.patrick@blinn.edu<br>
-                <strong>License</strong>: MIT (free for educational use, modification, and distribution)<br>
-                <strong>Source Code</strong>: github.com/kevin-patrick/theatre-cue-player<br>
-                <strong>Educator Network</strong>: <a href="https://forms.gle/JNS7qw5vzpr4eX5BA">Join educator beta testing</a></p>
-
-                <p><strong>Built-in Learning</strong>: Press F1 for context-sensitive help system<br>
-                <strong>New Student Tutorial</strong>: Automatic guided setup for first-time users<br>
-                <strong>Teacher Resources</strong>: Contact for lesson plans and assessment rubrics</p>
-
-                <hr>
-                <p><em>Designed specifically for educational theatre programs using Chromebooks and other standard classroom technology. Professional features included to teach industry-standard concepts while maintaining student-safe operation.</em></p>
-            </div>
-        </div>
-    </div>
-    
-</body>
-</html>
+</script></body></html>
