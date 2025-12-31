@@ -1583,22 +1583,30 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             <div class="modal-body">
                 <div class="renumber-options">
                     <div class="option-group">
-                        <label for="startNumber">Starting Number:</label>
-                        <input type="number" id="startNumber" value="1" min="0" step="0.1">
-                        <span class="help-text">First cue will be this number</span>
+                        <label for="renumberMode">Mode:</label>
+                        <select id="renumberMode" onchange="updateRenumberMode()">
+                            <option value="numeric">Numeric (1, 2, 3)</option>
+                            <option value="alpha">Alphabetic (A, B, C)</option>
+                        </select>
+                    </div>
+
+                    <div class="option-group">
+                        <label for="startNumber">Starting Value:</label>
+                        <input type="text" id="startNumber" value="1">
+                        <span class="help-text">First cue will be this value</span>
                     </div>
 
                     <div class="option-group">
                         <label for="increment">Increment:</label>
-                        <input type="number" id="increment" value="1" min="0.1" step="0.1">
-                        <span class="help-text">Add this amount for each cue (e.g., 1, 5, 10)</span>
+                        <input type="number" id="increment" value="1" min="1" step="1">
+                        <span class="help-text">Step size (e.g., 1, 2, 3)</span>
                     </div>
 
                     <div class="option-group">
                         <label for="rangeMode">Apply To:</label>
                         <select id="rangeMode" onchange="updateRangeOptions()">
                             <option value="all">All Cues</option>
-                            <option value="range">Cue Range (From X to Y)</option>
+                            <option value="range">Selected Range</option>
                         </select>
                     </div>
 
@@ -2344,6 +2352,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 this.MAX_UNDO_LEVELS = 5;
                 this.audioFilesLoaded = 0;
                 this.selectedCueIndex = -1;
+                this.numberingMode = 'numeric'; // 'numeric' or 'alpha'
             }
 
             loadProject(json) {
@@ -2357,6 +2366,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                     // Actually implementation plan put hotkeys in ProjectState.
                     this.hotkeyAssignments = new Map(Object.entries(json.hotkeyAssignments || {}));
                 }
+
+                // Restore numbering mode
+                this.numberingMode = json.numberingMode || 'numeric';
 
                 this.undoStack = [];
                 this.redoStack = [];
@@ -2447,9 +2459,13 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             }
 
             // CRUD
-            addCue(cue) {
+            addCue(cue, index = -1) {
                 this.saveUndoState("Add Cue");
-                this.cues.push(cue);
+                if (index >= 0 && index <= this.cues.length) {
+                    this.cues.splice(index, 0, cue);
+                } else {
+                    this.cues.push(cue);
+                }
                 // Sort behavior?
             }
 
@@ -2487,12 +2503,180 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             }
 
             getSmartCueNumber() {
-                // Logic from legacy: find max number, or next integer
-                // Simplified:
-                if (this.cues.length === 0) return "1";
-                const last = this.cues[this.cues.length - 1];
-                const num = parseFloat(last.cueNumber);
-                return isNaN(num) ? last.cueNumber + ".1" : (Math.floor(num) + 1).toString();
+                // Determine insertion context
+                let prevCue = null;
+                if (this.selectedCueIndex !== -1 && this.selectedCueIndex < this.cues.length) {
+                    prevCue = this.cues[this.selectedCueIndex];
+                } else if (this.cues.length > 0) {
+                    prevCue = this.cues[this.cues.length - 1];
+                }
+
+                if (!prevCue) return this.numberingMode === 'alpha' ? "A" : "1";
+
+                return this.calculateNextCueNumber(prevCue.cueNumber);
+            }
+
+            calculateNextCueNumber(currentNumStr) {
+                // Detect format of currentNumStr
+                const isAlpha = /[A-Za-z]/.test(currentNumStr);
+
+                // If we are in specific mode, we might want to force that logic, 
+                // but requirements say: "Format Detection: The logic must detect if the show is using Numbers or Letters based on the active cue."
+                // So we prioritize the format of the *active cue* over the global project mode if they differ? 
+                // Plan says: "If active is "A", try "B"..." so imply detection from previous cue.
+
+                if (isAlpha) {
+                    // Alphabetic Logic
+                    // 1. Try Next Letter (A -> B)
+                    // 2. If B exists, try A.1 (Decimal extension) OR A1? 
+                    // Requirements part 1.3: "If B exists, try A.1 (or A1)"
+                    // Let's stick to consistent dot notation: A -> B. If B exists -> A.1
+
+                    // Simple next:
+                    let next = this.nextAlpha(currentNumStr);
+                    if (!this.cueExists(next)) return next;
+
+                    // Fallback to branching: A -> A.1
+                    let branch = currentNumStr + ".1";
+                    if (!this.cueExists(branch)) return branch;
+
+                    // Deep branch: A.1 -> A.2
+                    // A.1 is technically mixed? 
+                    // Let's rely on a more generic "parts" parser?
+
+                    // Complexity: "A" -> "B". "A.1" -> "A.2".
+                    // If "A" exists and next "B" exists, we want to insert UNDER A.
+                    // So we want child of A. -> "A.1".
+                }
+
+                // General Logic covering both Alpha-with-suffix and Numeric
+                // Split by dots
+                const parts = currentNumStr.split('.');
+
+                // Try incrementing the last part
+                const lastPart = parts[parts.length - 1];
+                let nextLastPart = this.incrementPart(lastPart);
+
+                let candidate = [...parts.slice(0, -1), nextLastPart].join('.');
+
+                if (!this.cueExists(candidate)) {
+                    // But wait, if we are inserting *after* cue "4", and "5" exists, we want "4.1".
+                    // The logic "Try Next. If exists -> Switch to decimal"
+
+                    // Case 1: Simple Increment
+                    // 4 -> 5. 
+                    if (!this.cueExists(candidate)) return candidate;
+                }
+
+                // Case 2: Conflict exists (e.g. 5 exists). Go deeper.
+                // 4 -> 4.1
+                // A -> A.1
+                candidate = currentNumStr + ".1";
+                while (this.cueExists(candidate)) {
+                    // 4.1 exists? try 4.2
+                    // A.1 exists? try A.2
+                    candidate = this.incrementStringLastPart(candidate);
+                }
+                return candidate;
+            }
+
+            incrementPart(part) {
+                const num = parseInt(part, 10);
+                if (!isNaN(num)) return (num + 1).toString();
+
+                // Alpha increment: A->B, Z->AA
+                return this.toBase26(this.fromBase26(part) + 1);
+            }
+
+            incrementStringLastPart(str) {
+                const parts = str.split('.');
+                parts[parts.length - 1] = this.incrementPart(parts[parts.length - 1]);
+                return parts.join('.');
+            }
+
+            cueExists(num) {
+                return this.cues.some(c => c.cueNumber === num);
+            }
+
+            // Alpha Helpers
+            fromBase26(str) {
+                // A=1, B=2 ... Z=26, AA=27
+                let val = 0;
+                const s = str.toUpperCase();
+                for (let i = 0; i < s.length; i++) {
+                    val = val * 26 + (s.charCodeAt(i) - 64);
+                }
+                return val;
+            }
+
+            toBase26(num) {
+                let s = "";
+                while (num > 0) {
+                    let rem = (num - 1) % 26;
+                    s = String.fromCharCode(65 + rem) + s;
+                    num = Math.floor((num - 1) / 26);
+                }
+                return s;
+            }
+
+            formatCueNumber(value, mode) {
+                if (mode === 'numeric') {
+                    // Fix floating point errors (e.g. 1.00000001)
+                    return (Math.round(value * 1000) / 1000).toString();
+                } else {
+                    // Alpha Mode: Handle Integers vs Decimals
+                    const intPart = Math.floor(value);
+                    const decPart = value - intPart;
+
+                    const letter = this.toBase26(intPart);
+
+                    if (decPart > 0.0001) {
+                        // Has decimal: "A" + ".1"
+                        // Round decimal to 3 places, remove "0" prefix
+                        const decStr = (Math.round(decPart * 1000) / 1000).toString().substring(1);
+                        return letter + decStr;
+                    } else {
+                        return letter;
+                    }
+                }
+            }
+
+            // Renumbering
+            renumberCues(settings) {
+                // settings: { scope: 'all'|'selected', mode: 'numeric'|'alpha', startVal: str, increment: num }
+                this.saveUndoState("Renumber Cues");
+
+                let targets = [];
+                if (settings.scope === 'selected' && this.selectedCueIndex !== -1) {
+                    // Logic for range selection would be better if we had multi-select. 
+                    // For now, let's assume "From Selected to End" or "Range"
+                    // Requirement: "If Range, show Start Cue and End Cue dropdowns"
+                    // The modal will provide the list of indices or we filter here.
+                    // Let's assume the UI passes a list of indices or we simplify for the single-file nature.
+                    // We'll stick to: 'all' or 'selection-range' passed as indices
+                    if (settings.indices) {
+                        targets = settings.indices.map(i => this.cues[i]);
+                    }
+                } else {
+                    targets = this.cues;
+                }
+
+                // Parse Start Value
+                let currentVal = settings.mode === 'alpha' ? this.fromBase26(settings.startVal) : parseFloat(settings.startVal);
+                const step = settings.increment || 1;
+
+                targets.forEach(cue => {
+                    cue.cueNumber = this.formatCueNumber(currentVal, settings.mode);
+                    currentVal += step;
+                });
+
+                this.numberingMode = settings.mode;
+
+                if (window.app && window.app.ui) window.app.ui.renderCueTable();
+            }
+
+            nextAlpha(str) {
+                return this.toBase26(this.fromBase26(str) + 1);
             }
 
             // --- Edit Mode Methods ---
@@ -2562,6 +2746,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 this.undoStack = [];
                 this.redoStack = [];
                 this.hotkeyAssignments = new Map();
+                this.numberingMode = 'numeric';
                 // UI reset is handled by caller (UIController or Shim)
             }
 
@@ -2978,11 +3163,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 // `cues[idx-1]` is playing.
 
                 // Strategy: Iterate to find playing cues?
-                // Simpler: Stop the cue at index - 1 if it exists and is playing?
-                // Or Stop the cue at index?
-                // Let's stop BOTH to be safe? No, that might be confusing.
-
-                // Let's check AudioEngine for ACTIVELY playing cues.
                 // But UI doesn't know easily.
 
                 // Fallback: Try to stop the cue BEFORE the current index, as that's the one likely playing.
@@ -3214,42 +3394,58 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         targetCellContent += `<span class="help-icon" onclick="showHelp('Invalid Target', '${helpText}', event)">?</span>`;
                     }
 
-                    // HTML Construction - Using legacy calls to window.* which will shim to app.*
+                    // HTML Construction - Hybrid Interaction Model
                     html += `
             <tr class="${rowClasses.join(' ')}" style="cursor: default;">
-                <td onclick="app.state.setCurrentCueIndex(${i}); event.stopPropagation();" style="cursor: pointer;">${cue.cueNumber}</td>
-                <td onclick="${editMode ? `app.ui.editField('label', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${displayLabel}</td>
-                <td class="${targetCellClass}" onclick="${editMode ? `app.ui.selectTarget('${cue.cueNumber}'); event.stopPropagation();` : ''}">${targetCellContent}</td>
+                <td onclick="app.state.setCurrentCueIndex(${i})" 
+                    ondblclick="${editMode ? `app.ui.editField('cueNumber', '${cue.cueNumber}')` : ''}"
+                    style="cursor: pointer;">${cue.cueNumber}</td>
+                
+                <td onclick="${editMode ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('label', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${displayLabel}</td>
+                
+                <td class="${targetCellClass}" onclick="${editMode ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.selectTarget('${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${targetCellContent}</td>
+                
                 <td><input type="checkbox" ${cue.autoContinue ? 'checked' : ''} ${editMode ? `onchange="event.stopPropagation(); app.state.updateCueProperty('${cue.cueNumber}', 'autoContinue', this.checked);"` : 'disabled'}></td>
-                <td onclick="${editMode ? `app.ui.editField('delay', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${this.formatSecondsFromMs(cue.delay)}</td>
-                <td onclick="${editMode && cue.type === 'audio' ? `app.ui.editField('startTime', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${cue.type === 'audio' ? this.formatTime(cue.startTime) : '-'}</td>
-                <td onclick="${editMode && cue.type === 'audio' ? `app.ui.editField('fadeInTime', '${cue.cueNumber}')` : ''}">${cue.type === 'audio' ? this.formatSecondsFromMs(cue.fadeInTime) : '-'}</td>
-                <td onclick="${editMode ? `app.ui.editField('volume', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${(() => {
+                
+                <td onclick="${editMode ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('delay', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${this.formatSecondsFromMs(cue.delay)}</td>
+                
+                <td onclick="${editMode && cue.type === 'audio' ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('startTime', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${cue.type === 'audio' ? this.formatTime(cue.startTime) : '-'}</td>
+                
+                <td onclick="${editMode && cue.type === 'audio' ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('fadeInTime', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${cue.type === 'audio' ? this.formatSecondsFromMs(cue.fadeInTime) : '-'}</td>
+                
+                <td onclick="${editMode ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('volume', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${(() => {
                             const vol = cue.volume !== undefined ? cue.volume : 100;
                             return vol;
                         })()}%</td>
-                <td onclick="${editMode ? `app.ui.editField('pan', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${this.getPanDisplay(cue.pan || 0)}</td>
-                <td onclick="${editMode && cue.type === 'fade' ? `app.ui.editField('fadeInTime', '${cue.cueNumber}')` : ''}">${cue.type === 'fade' ? this.formatSecondsFromMs(cue.fadeInTime) + ' fade' : (() => {
+                
+                <td onclick="${editMode ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('pan', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${this.getPanDisplay(cue.pan || 0)}</td>
+                
+                <td onclick="${editMode && cue.type === 'fade' ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('fadeInTime', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${cue.type === 'fade' ? this.formatSecondsFromMs(cue.fadeInTime) + ' fade' : (() => {
                             const duration = this.calculateCueDuration(cue);
                             const loopCount = cue.loop || 1;
                             if (loopCount >= 999) return this.formatDuration(duration) + ' ∞';
                             return this.formatDuration(duration);
                         })()}</td>
-                <td onclick="${editMode && cue.type === 'audio' ? `app.ui.editField('endTime', '${cue.cueNumber}')` : ''}">${cue.type === 'audio' ? this.formatTime(cue.endTime) : '-'}</td>
-                <td onclick="${editMode && cue.type === 'audio' ? `app.ui.editField('fadeOutTime', '${cue.cueNumber}')` : ''}">${cue.type === 'audio' ? this.formatSecondsFromMs(cue.fadeOutTime) : '-'}</td>
-                <td onclick="${editMode ? `app.ui.editField('loop', '${cue.cueNumber}'); event.stopPropagation();` : ''}">${(() => {
+                
+                <td onclick="${editMode && cue.type === 'audio' ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('endTime', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${cue.type === 'audio' ? this.formatTime(cue.endTime) : '-'}</td>
+                
+                <td onclick="${editMode && cue.type === 'audio' ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('fadeOutTime', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${cue.type === 'audio' ? this.formatSecondsFromMs(cue.fadeOutTime) : '-'}</td>
+                
+                <td onclick="${editMode ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('loop', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${(() => {
                             const loopCount = cue.loop || 1;
                             if (loopCount >= 999) return '∞x';
                             return loopCount + 'x';
                         })()}</td>
+                
                 <td><input type="checkbox" ${cue.autoFollow ? 'checked' : ''} ${editMode ? `onchange="event.stopPropagation(); app.state.updateCueProperty('${cue.cueNumber}', 'autoFollow', this.checked);"` : 'disabled'}></td>
+                
                 <td>
                     <button onclick="playCue('${cue.cueNumber}')" class="btn btn-success" style="padding: 0.2rem 0.4rem; margin-right: 0.2rem;">▶</button>
                     <button onclick="fadeCue('${cue.cueNumber}')" class="btn btn-warning" style="padding: 0.2rem 0.4rem; margin-right: 0.2rem;"${cue.type === 'fade' ? ' disabled' : ''}>⧵</button>
                     <button onclick="stopCue('${cue.cueNumber}')" class="btn btn-danger" style="padding: 0.2rem 0.4rem; margin-right: 0.2rem;"${cue.type === 'fade' ? ' disabled' : ''}>■</button>
                     ${editMode ? `<button onclick="${cue.type === 'audio' && isValidCue ? `openWaveformEditor('${cue.cueNumber}')` : 'void(0)'}" class="btn ${cue.type === 'audio' && isValidCue ? 'btn-info' : 'btn-secondary'}" style="padding: 0.2rem 0.4rem; ${cue.type === 'fade' ? 'opacity: 0.3; cursor: not-allowed;' : ''}" title="Waveform Editor" ${cue.type === 'fade' ? 'disabled' : ''}>∿</button>` : ''}
                 </td>
-            </tr > `;
+            </tr> `;
                 }
 
                 html += `</tbody ></table > `;
@@ -4488,11 +4684,32 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         };
 
         window.addAudioCue = () => {
+            // 1. Determine Insertion Point
+            // Priority: Selected Cue (Yellow) -> Current Playhead (Blue) -> End of List
+            let insertAfterIndex = -1;
+
+            if (app.state.selectedCueIndex !== -1) {
+                insertAfterIndex = app.state.selectedCueIndex;
+            } else if (app.state.currentCueIndex !== -1) {
+                insertAfterIndex = app.state.currentCueIndex;
+            } else if (app.state.cues.length > 0) {
+                insertAfterIndex = app.state.cues.length - 1;
+            }
+
+            // 2. Get Smart Number based on that position
+            // We pass the cue *at* the insertion point to the calculator
+            let prevCueNum = null;
+            if (insertAfterIndex !== -1 && app.state.cues[insertAfterIndex]) {
+                prevCueNum = app.state.cues[insertAfterIndex].cueNumber;
+            }
+
+            const newCueNum = app.state.calculateNextCueNumber(prevCueNum || "0");
+
             const cue = {
-                cueNumber: app.state.getSmartCueNumber(),
+                cueNumber: newCueNum,
                 type: 'audio',
                 label: 'New Audio Cue',
-                file: '', // UI should prompt or leave empty
+                file: '',
                 volume: 100,
                 pan: 0,
                 loop: 1,
@@ -4505,7 +4722,12 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 autoFollow: false,
                 status: 'missing'
             };
-            app.state.addCue(cue);
+
+            // 3. Add AFTER the determined index (so index + 1)
+            app.state.addCue(cue, insertAfterIndex + 1);
+
+            // 4. Select the new cue
+            app.state.selectCueForInsertion(insertAfterIndex + 1);
             app.ui.renderCueTable();
         };
 
@@ -4522,8 +4744,160 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 autoContinue: false,
                 autoFollow: false
             };
-            app.state.addCue(cue);
+
+            let insertIndex = -1;
+            if (app.state.selectedCueIndex !== -1) {
+                insertIndex = app.state.selectedCueIndex + 1;
+            }
+
+            app.state.addCue(cue, insertIndex);
             app.ui.renderCueTable();
+        };
+
+        // --- Renumber Modal Logic ---
+
+        window.openRenumberModal = () => {
+            const modal = document.getElementById('renumberModal');
+            if (modal) {
+                modal.style.display = 'flex';
+
+                // Set defaults
+                document.getElementById('renumberMode').value = app.state.numberingMode || 'numeric';
+                document.getElementById('startNumber').value = app.state.numberingMode === 'alpha' ? 'A' : '1';
+                document.getElementById('increment').value = '1';
+                document.getElementById('rangeMode').value = 'all';
+                window.updateRangeOptions();
+
+                // Bind live preview listeners
+                const startInput = document.getElementById('startNumber');
+                const incInput = document.getElementById('increment');
+                const fromInput = document.getElementById('fromCue');
+                const toInput = document.getElementById('toCue');
+
+                if (startInput) startInput.oninput = window.updateRenumberPreview;
+                if (incInput) incInput.oninput = window.updateRenumberPreview;
+                if (fromInput) fromInput.onchange = window.updateRenumberPreview;
+                if (toInput) toInput.onchange = window.updateRenumberPreview;
+
+                window.updateRenumberPreview();
+            }
+        };
+
+        window.closeRenumberModal = () => {
+            const modal = document.getElementById('renumberModal');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.updateRenumberMode = () => {
+            const mode = document.getElementById('renumberMode').value;
+            const startInput = document.getElementById('startNumber');
+            if (mode === 'alpha') {
+                if (!/[A-Za-z]/.test(startInput.value)) startInput.value = 'A';
+            } else {
+                if (isNaN(parseFloat(startInput.value))) startInput.value = '1';
+            }
+            window.updateRenumberPreview();
+        };
+
+        window.updateRangeOptions = () => {
+            const mode = document.getElementById('rangeMode').value;
+            const rangeDiv = document.getElementById('rangeOptions');
+            if (mode === 'range') {
+                rangeDiv.style.display = 'flex';
+                // Populate dropdowns with all cues
+                const fromSel = document.getElementById('fromCue');
+                const toSel = document.getElementById('toCue');
+                fromSel.innerHTML = '';
+                toSel.innerHTML = '';
+                app.state.cues.forEach((c, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.text = `${c.cueNumber}: ${c.label}`;
+                    const opt2 = opt.cloneNode(true);
+                    fromSel.add(opt);
+                    toSel.add(opt2);
+                });
+                // Default To = last
+                if (app.state.cues.length > 0) toSel.value = app.state.cues.length - 1;
+            } else {
+                rangeDiv.style.display = 'none';
+            }
+            window.updateRenumberPreview();
+        };
+
+        window.updateRenumberPreview = () => {
+            const mode = document.getElementById('renumberMode').value; // numeric/alpha
+            const startVal = document.getElementById('startNumber').value;
+            const increment = parseFloat(document.getElementById('increment').value) || 1;
+            const rangeMode = document.getElementById('rangeMode').value;
+
+            const table = document.getElementById('previewTable');
+            let html = '<table><thead><tr><th>Old #</th><th>Label</th><th>New #</th></tr></thead><tbody>';
+
+            let targets = [];
+
+            if (rangeMode === 'range') {
+                const fromIdx = parseInt(document.getElementById('fromCue').value);
+                const toIdx = parseInt(document.getElementById('toCue').value);
+                if (!isNaN(fromIdx) && !isNaN(toIdx)) {
+                    const start = Math.min(fromIdx, toIdx);
+                    const end = Math.max(fromIdx, toIdx);
+                    targets = app.state.cues.slice(start, end + 1);
+                }
+            } else {
+                targets = app.state.cues;
+            }
+
+            if (targets.length === 0) {
+                table.innerHTML = '<p>No cues to renumber.</p>';
+                return;
+            }
+
+            let currentVal = mode === 'alpha' ? app.state.fromBase26(startVal) : parseFloat(startVal);
+            if (isNaN(currentVal)) currentVal = 1;
+
+            targets.forEach(cue => {
+                const newValStr = app.state.formatCueNumber(currentVal, mode);
+
+                html += `<tr>
+                    <td class="old-number">${cue.cueNumber}</td>
+                    <td>${cue.label}</td>
+                    <td class="new-number">${newValStr}</td>
+                 </tr>`;
+
+                currentVal += increment;
+            });
+
+            html += '</tbody></table>';
+            table.innerHTML = html;
+        };
+
+        window.applyRenumber = () => {
+            const mode = document.getElementById('renumberMode').value;
+            const startVal = document.getElementById('startNumber').value;
+            const increment = parseFloat(document.getElementById('increment').value) || 1;
+            const rangeMode = document.getElementById('rangeMode').value;
+
+            let settings = {
+                mode: mode,
+                startVal: startVal,
+                increment: increment,
+                scope: rangeMode
+            };
+
+            if (rangeMode === 'range') {
+                const fromIdx = parseInt(document.getElementById('fromCue').value);
+                const toIdx = parseInt(document.getElementById('toCue').value);
+                const start = Math.min(fromIdx, toIdx);
+                const end = Math.max(fromIdx, toIdx);
+                let indices = [];
+                for (let i = start; i <= end; i++) indices.push(i);
+                settings.scope = 'selected';
+                settings.indices = indices;
+            }
+
+            app.state.renumberCues(settings);
+            window.closeRenumberModal();
         };
 
         // Initialize on Load
