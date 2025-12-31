@@ -2697,6 +2697,34 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 const cue = this.getCue(cueNumber);
                 if (!cue) return;
 
+                // --- VALIDATION START ---
+                if (field === 'cueNumber') {
+                    const newValue = String(value).trim();
+
+                    // 1. Block Blank Input
+                    if (newValue === '') {
+                        alert("Cue Number cannot be blank.");
+                        return; // Cancel update
+                    }
+
+                    // 2. Block Duplicates
+                    // Check if any OTHER cue (not this one) has the same number
+                    const duplicate = this.cues.find(c => c.cueNumber === newValue && c !== cue);
+                    if (duplicate) {
+                        alert(`Cue Number "${newValue}" already exists. Please choose a unique number.`);
+                        return; // Cancel update
+                    }
+
+                    // Validated - Proceed with Renumbering
+                    this.saveUndoState(`Renumber Cue ${cueNumber} to ${newValue}`);
+                    cue.cueNumber = newValue;
+
+                    // Force UI Refresh
+                    if (window.app && window.app.ui) window.app.ui.renderCueTable();
+                    return;
+                }
+                // --- VALIDATION END ---
+
                 this.saveUndoState(`Edit ${field} for Cue ${cueNumber}`);
 
                 const conversionFields = ['delay', 'fadeInTime', 'fadeOutTime'];
@@ -4732,25 +4760,48 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         };
 
         window.addFadeCue = () => {
+            // 1. Determine Insertion Point (Priority: Blue Playhead -> End)
+            let insertIndex = app.state.cues.length;
+            let prevCueNum = null;
+
+            if (app.state.currentCueIndex !== -1 && app.state.cues[app.state.currentCueIndex]) {
+                insertIndex = app.state.currentCueIndex + 1;
+                prevCueNum = app.state.cues[app.state.currentCueIndex].cueNumber;
+            }
+
+            // 2. Smart Targeting Logic
+            // Search backwards from the insertion point to find the nearest Audio Cue
+            let targetCueNum = '';
+            // We search from (insertIndex - 1) down to 0
+            for (let i = insertIndex - 1; i >= 0; i--) {
+                const potentialTarget = app.state.cues[i];
+                if (potentialTarget && potentialTarget.type === 'audio') {
+                    targetCueNum = potentialTarget.cueNumber;
+                    break; // Found the nearest one above
+                }
+            }
+
+            // 3. Generate Number
+            const newCueNum = app.state.calculateNextCueNumber(prevCueNum || "0");
+
+            // 4. Create Cue Object
             const cue = {
-                cueNumber: app.state.getSmartCueNumber(),
+                cueNumber: newCueNum,
                 type: 'fade',
-                label: 'New Fade Cue',
-                target: '',
-                targetVolume: 0,
-                fadeDuration: 3000,
-                stopTarget: true,
+                label: 'Fade Cue',
+                target: targetCueNum, // Auto-populated target
+                volume: 0,           // Default to Fade Out (0%)
+                fadeInTime: 3000,    // Default 3.0s
+                fadeOutTime: 0,
+                stopTarget: true,    // Legacy flag, but good to keep default true for fade outs
                 delay: 0,
                 autoContinue: false,
                 autoFollow: false
             };
 
-            let insertIndex = -1;
-            if (app.state.selectedCueIndex !== -1) {
-                insertIndex = app.state.selectedCueIndex + 1;
-            }
-
+            // 5. Add and Select
             app.state.addCue(cue, insertIndex);
+            app.state.setCurrentCueIndex(insertIndex);
             app.ui.renderCueTable();
         };
 
