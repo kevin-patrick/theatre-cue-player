@@ -1415,7 +1415,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 <button onclick="deleteCue()" class="btn btn-danger">Delete Cue<span class="help-icon"
                         onclick="showHelp('Delete Cue', 'Remove a cue from your show (select from list)', event)">?</span></button>
                 <button onclick="openRenumberModal()" class="btn btn-secondary">Renumber Cues<span class="help-icon"
-                        onclick="showHelp('Renumber Cues', 'Automatically renumber your cues with custom starting number and increment (QLab-style)', event)">?</span></button>
+                        onclick="showHelp('Renumber Cues', 'Automatically renumber your cues with custom starting number or letter and increment', event)">?</span></button>
                 <button onclick="openReorderModal()" class="btn btn-info">Reorder Cues<span class="help-icon"
                         onclick="showHelp('Reorder Cues', 'Change the order of cues in your sequence', event)">?</span></button>
                 <button onclick="saveCueFileAs()" class="btn btn-success">Save Cue File As...<span class="help-icon"
@@ -2368,10 +2368,12 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
                 this.undoStack = [];
                 this.redoStack = [];
-                this.MAX_UNDO_LEVELS = 5;
+                this.MAX_UNDO_LEVELS = 10;
                 this.audioFilesLoaded = 0;
                 this.selectedCueIndex = -1;
                 this.numberingMode = 'numeric'; // 'numeric' or 'alpha'
+                this.lastSaved = null;
+                this.isDirty = false;
             }
 
             loadProject(json) {
@@ -2381,13 +2383,15 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
                 // Restore hotkeys
                 if (json.hotkeyAssignments && window.app && window.app.state) {
-                    // Hotkeys are stored in state too?
-                    // Actually implementation plan put hotkeys in ProjectState.
                     this.hotkeyAssignments = new Map(Object.entries(json.hotkeyAssignments || {}));
                 }
 
                 // Restore numbering mode
                 this.numberingMode = json.numberingMode || 'numeric';
+
+                // Restore Status
+                this.lastSaved = json.lastSaved || null;
+                this.isDirty = false; // Fresh load is clean
 
                 this.undoStack = [];
                 this.redoStack = [];
@@ -2439,6 +2443,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             }
 
             saveUndoState(desc) {
+                this.isDirty = true; // Mark as modified
                 if (this.undoStack.length >= this.MAX_UNDO_LEVELS) this.undoStack.shift();
 
                 // Deep copy cues
@@ -3118,6 +3123,51 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
                     // Handle different shortcuts
                     switch (key) {
+                        case 'z':
+                        case 'Z':
+                            // Ctrl+Z = Undo
+                            if (!this.helpMode && ctrlKey && !shiftKey) {
+                                event.preventDefault();
+                                if (this.editMode) {
+                                    const desc = this.app.state.performUndo();
+                                    if (desc) {
+                                        this.showTemporaryFeedback(`Undid: ${desc} ↩️`);
+                                        this.renderCueTable();
+                                    } else {
+                                        this.showTemporaryFeedback('Nothing to Undo');
+                                    }
+                                }
+                            }
+                            // Ctrl+Shift+Z = Redo (Standard alternative)
+                            else if (!this.helpMode && ctrlKey && shiftKey) {
+                                event.preventDefault();
+                                if (this.editMode) {
+                                    const desc = this.app.state.performRedo();
+                                    if (desc) {
+                                        this.showTemporaryFeedback(`Redid: ${desc} ↪️`);
+                                        this.renderCueTable();
+                                    }
+                                }
+                            }
+                            break;
+
+                        case 'y':
+                        case 'Y':
+                            // Ctrl+Y = Redo
+                            if (!this.helpMode && ctrlKey) {
+                                event.preventDefault();
+                                if (this.editMode) {
+                                    const desc = this.app.state.performRedo();
+                                    if (desc) {
+                                        this.showTemporaryFeedback(`Redid: ${desc} ↪️`);
+                                        this.renderCueTable();
+                                    } else {
+                                        this.showTemporaryFeedback('Nothing to Redo');
+                                    }
+                                }
+                            }
+                            break;
+
                         case ' ': // Spacebar = GO
                             event.preventDefault();
                             if (!this.helpMode) {
@@ -3323,12 +3373,29 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                     });
                 }
 
-                // 2. Cue File Input
+                // 2. Cue File Input (THIS WAS THE BROKEN PART)
                 const cueInput = document.getElementById('cueFileInput');
                 if (cueInput) {
                     cueInput.addEventListener('change', async (e) => {
                         await this.app.state.handleCueFileLoad(e);
                         this.showProject();
+                        this.updateHeaderDisplay(); // <--- This line was missing!
+                    });
+                }
+
+                // Prevent row selection when interacting with volume slider
+                const volumeInput = document.getElementById('masterVolume');
+                if (volumeInput) {
+                    volumeInput.addEventListener('mousedown', (e) => {
+                        e.stopPropagation(); // Prevent row selection
+                    });
+                }
+
+                // NEW: Jump Box Enter Key
+                const jumpInput = document.getElementById('cueJumpInput');
+                if (jumpInput) {
+                    jumpInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') this.jumpToCue();
                     });
                 }
 
@@ -3338,6 +3405,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                     showInput.addEventListener('change', async (e) => {
                         await this.app.state.handleShowFolderLoad(e);
                         this.showProject();
+                        this.updateHeaderDisplay();
                     });
                 }
             }
@@ -3369,7 +3437,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         <table class="cue-table">
             <thead>
                 <tr>
-                    <th>Cue #<span class="help-icon" onclick="showHelp('Cue #', 'Unique identifier for this cue (e.g., 1, 2, 2.5, A1)', event)">?</span></th>
+                    <th>Cue #<span class="help-icon" onclick="showHelp('Cue #', 'Unique identifier for this cue (e.g., 1, 2, 2.5, A1). In Edit Mode, single-click on cue # to set the active cue, and double click to edit the cue number', event)">?</span></th>
                     <th>Cue Label<span class="help-icon" onclick="showHelp('Cue Label', 'Descriptive name for this cue (e.g., \"Thunder SFX\", \"Act 1 Music\")', event)">?</span></th>
                     <th>Target<span class="help-icon" onclick="showHelp('Target', 'Audio file for audio cues, or target cue number for fade cues', event)">?</span></th>
                     <th>Auto<br>Continue<span class="help-icon" onclick="showHelp('Auto Continue', 'Immediately start the next cue when this one begins (layered playback)', event)">?</span></th>
@@ -3693,6 +3761,14 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 return '<span style="color: #ff6b6b;">○○○○●</span>';
             }
 
+            updateHeaderDisplay() {
+                const showNameEl = document.getElementById('showName');
+                const fileNameEl = document.getElementById('fileName');
+
+                if (showNameEl) showNameEl.innerText = this.app.state.showName || "Untitled Show";
+                if (fileNameEl) fileNameEl.innerText = this.app.state.currentFileName || "No file loaded";
+            }
+
             updateProjectStatus() {
                 const statusDiv = document.getElementById('projectStatus');
                 if (statusDiv) {
@@ -3700,9 +3776,35 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 }
             }
 
-            // Alias for compatibility
+            // Compatibility Alias
             updateStatus() {
                 this.updateProjectStatus();
+            }
+
+            showProjectStatus() {
+                const state = this.app.state;
+                const total = state.cues.length;
+                const audioCues = state.cues.filter(c => c.type === 'audio').length;
+                // "Ready" means valid. "Invalid" means !valid.
+                const ready = state.cues.filter(c => state.validateCue(c)).length;
+                const invalid = total - ready;
+
+                const saveTime = state.lastSaved ? new Date(state.lastSaved).toLocaleString() : 'Never';
+                const unsaved = state.isDirty ? '⚠️ Unsaved Changes' : '✅ All Saved';
+
+                const stats =
+                    `PROJECT STATUS\n` +
+                    `------------------\n` +
+                    `Show: ${state.showName}\n` +
+                    `File: ${state.currentFileName}\n\n` +
+                    `Last Saved: ${saveTime}\n` +
+                    `Status: ${unsaved}\n\n` +
+                    `Total Cues: ${total}\n` +
+                    `Audio Cues: ${audioCues}\n` +
+                    `Ready: ${ready}\n` +
+                    `Invalid: ${invalid}`;
+
+                alert(stats);
             }
 
             showTemporaryFeedback(message, duration = 2000) {
@@ -4735,6 +4837,21 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         window.jumpToCue = () => app.ui.jumpToCue();
         window.jumpToFirst = () => app.ui.jumpToFirst();
 
+        // Polished Actions
+
+        window.editShowName = () => {
+            if (!app.ui.editMode) {
+                alert("Enter Edit Mode to change the Show Title.");
+                return;
+            }
+            const newName = prompt("Enter Show Name:", app.state.showName);
+            if (newName && newName.trim() !== "") {
+                app.state.showName = newName.trim();
+                app.state.isDirty = true;
+                app.ui.updateHeaderDisplay();
+            }
+        };
+
         window.loadAudioFolder = () => document.getElementById('folderInput').click();
         window.loadCueFile = () => document.getElementById('cueFileInput').click();
         window.loadShowFolder = () => document.getElementById('showFolderInput').click();
@@ -4744,18 +4861,18 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         window.handleShowFolderLoad = async (event) => {
             await app.state.handleShowFolderLoad(event);
             app.ui.showProject();
+            app.ui.updateHeaderDisplay(); // Updates Header
         };
 
         window.handleFolderSelect = async (event) => {
-            // Maps to Audio Folder
             await app.state.handleAudioFolderLoad(event);
-            app.ui.showProject(); // Ensure view is visible
+            app.ui.showProject();
         };
 
         window.handleFileSelect = async (event) => {
-            // Maps to Cue JSON File
             await app.state.handleCueFileLoad(event);
             app.ui.showProject();
+            app.ui.updateHeaderDisplay(); // Updates Header
         };
 
         window.newProject = () => {
@@ -4764,6 +4881,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             app.ui.editMode = true;
             app.ui.updateStatus();
             app.ui.showTemporaryFeedback("New Project Created");
+            app.ui.updateHeaderDisplay(); // Resets Header
         };
 
         window.editModeFromLanding = () => {
@@ -4783,20 +4901,65 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             app.ui.renderCueTable();
         };
 
-        window.saveCueFileAs = () => {
-            // Logic to save file
+        window.saveCueFileAs = async () => {
+            // 1. Update Metadata
+            app.state.lastSaved = new Date().toISOString();
+            app.state.isDirty = false;
+
+            // Refresh UI immediately to show clean state
+            if (app.ui.updateHeaderDisplay) app.ui.updateHeaderDisplay();
+
+            // 2. Prepare Data
             const data = JSON.stringify(app.state, null, 2);
+            const suggestedName = (app.state.showName || 'show') + '.json';
             const blob = new Blob([data], { type: 'application/json' });
+
+            // 3. Try Modern "Save As" Picker (Forces Dialog)
+            if (window.showSaveFilePicker) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: suggestedName,
+                        types: [{
+                            description: 'Theatre Cue File',
+                            accept: { 'application/json': ['.json'] },
+                        }],
+                    });
+
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+
+                    // NEW: Update State and Header immediately
+                    app.state.currentFileName = handle.name;
+                    app.ui.updateHeaderDisplay();
+
+                    app.ui.showTemporaryFeedback("Project Saved 💾");
+                    return; // Success! Stop here.
+                } catch (err) {
+                    // User cancelled the dialog, or permission denied.
+                    // If they just cancelled, we do nothing.
+                    if (err.name === 'AbortError') return;
+                    console.warn("Save Picker failed, falling back to download:", err);
+                }
+            }
+
+            // 4. Fallback (Classic Download Method)
+            // Used if browser doesn't support the API or it fails
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = (app.state.showName || 'show') + '.json';
+            a.download = suggestedName;
+            document.body.appendChild(a); // Firefox requires it to be in the DOM
             a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            app.ui.showTemporaryFeedback("Project Saved (Check Downloads) 💾");
         };
 
         window.showHelp = (title, text, e) => app.ui.showHelp(title, text, e);
         window.toggleHelp = () => app.ui.toggleHelp(); // Needs implementation in UIController
-        window.showProjectStatus = () => app.ui.showProjectStatus(); // Needs implementation
+        window.showProjectStatus = () => app.ui.showProjectStatus();
 
         // Modal Shims
         window.openRenumberModal = () => document.getElementById('renumberModal').style.display = 'block';
@@ -4817,11 +4980,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         };
 
         window.deleteCue = () => {
-            // Legacy behavior: Delete CURRENTLY SELECTED CUE? 
-            // Wait, typically legacy deleteCue took an argument or deleted selected.
-            // Let's assume delete selected.
             if (app.state.currentCueIndex > -1) {
-                if (confirm("Delete Cue?")) {
+                const cue = app.state.cues[app.state.currentCueIndex];
+                if (cue && confirm(`Delete Cue ${cue.cueNumber}: "${cue.label}"?`)) {
                     app.state.deleteCue(app.state.currentCueIndex);
                     app.ui.renderCueTable();
                 }
