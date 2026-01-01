@@ -1,78 +1,24 @@
 <!--
 Theatre Cue Player
 
-Developed by Kevin Patrick, Blinn College–Brenham Campus
-With code assistance from OpenAI's ChatGPT and Anthropic's Claude
+Developed by Kevin Patrick
 
-Version 0.9.1 – Last Updated July 27, 2025
-NEW FEATURE: Multiple Audio Instance Playback
- - Sound Effect Layering: Multiple instances of the same cue can now play simultaneously, enabling overlapping sound effects like airhorns, applause, or stingers
- - Unified Control: Stop and Fade buttons affect ALL instances of a cue, maintaining professional control workflow
- - Smart Instance Management: Individual cue instances are tracked internally while displaying clean cue numbers in the interface
- - Full Compatibility: Stop All, Fade All, Auto Follow, and all existing functionality preserved
+v0.9.6 - Last Updated January 1, 2026
+  Refactored with Google's Gemini 3 Pro AI. Comprehensive overhaul of the application core. Transitioned from an organically grown 'piecemeal' structure to a modern, standardized methodology. This refactor prioritized code hygiene, stability, and scalability—replacing ad-hoc solutions with deliberate, system-wide logic patterns.
 
-TECHNICAL IMPLEMENTATION:
- - Enhanced playingCues Map to use unique instance identifiers (cueNumber_timestamp) allowing multiple simultaneous playbacks
- - Updated stop/fade functions to handle multiple instances per cue number while maintaining unified control
- - Improved UI display logic to show base cue numbers instead of internal instance IDs
- - Fixed loop completion cleanup to properly remove finished instances from memory
-BUG FIXES:
- - Fixed auto cue numbering system for proper sequential numbering
- - Resolved infinite silent looping issue when cues with finite loops completed
- - Corrected Auto Follow execution after loop completion
+***LICENSE***
 
+This work is licensed under a Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License.
 
-Version 0.9.0 – Last Updated July 26, 2025
+You are free to:
+- Share — copy and redistribute the material in any medium or format
 
-TECHNICAL IMPLEMENTATION:
-- Added comprehensive UNDO/REDO system for edit operations with 10-level history
-- Added Ctrl+Z keyboard shortcut for single-step undo functionality
-- Added Ctrl+Y keyboard shortcut for single-step redo functionality
-- Integrated undo state saving into all edit operations: add cue, delete cue, edit fields, move cues, renumber cues, assign targets, edit pan
-- Undo/redo stacks automatically clear when loading new projects or creating new projects
-- Redo stack clears when new edit operations are performed (standard undo/redo behavior)
-- Undo/redo system captures full project snapshots with timestamps and operation descriptions
-- Added professional keyboard shortcuts: A key for Add Audio Cue, F key for Add Fade Cue (Edit Mode only)
-- Implemented smart cue insertion after selected cue instead of always appending to end
-- Added intelligent cue numbering with decimal fallback (2→3, then 2.1, 2.2, etc.) like QLab
-- Enhanced cue table with visual selection highlighting (yellow border) for insertion point
-- Improved fade cue targeting to select nearest audio cue based on insertion position
-- Removed UNDO/REDO buttons from header for cleaner professional interface (keyboard shortcuts preferred)
+Under the following terms:
+- **Attribution** — You must give appropriate credit
+- **NonCommercial** — You may not use the material for commercial purposes
+- **NoDerivatives** — You may not distribute modified versions
 
-Version 0.8.5 – Last Updated July 25, 2025
-
-TECHNICAL IMPLEMENTATION:
-- Fixed ESC key issue: Implemented dual protection system to prevent auto-follow and auto-continue from executing after stopAll()
-- Added timeout management system to track and clear all pending automation timers (cue delays, auto-follow, auto-continue, fade completion, etc.)
-- Added stopAllCalled flag as backup protection against timeouts that execute after being queued by JavaScript engine
-- Enhanced stopAll() with comprehensive timeout clearing and flag-based prevention of automation
-- Added extensive debugging timestamps to track timeout execution and cancellation
-- Fixed Next Cue display logic: Now shows the cue that will play when GO is pressed, not the final cue after automation chains
-- Improved automation chain handling: Next Cue properly advances after cue starts playing and correctly traces through complex nested automation chains
-- Enhanced findNextExplicitCue() function with step-by-step chain tracing for accurate manual cue prediction
-- Added visual validation indicators: Invalid cue cells now display red background with X icon for missing files/targets
-- Implemented comprehensive cue validation system with validateAudioCue(), validateFadeCue(), and validateAllCues() functions
-- Added validation triggers on file loading, cue creation, and cue modification to maintain data integrity
-- Enhanced help system: Invalid target cells include help icons with context-specific guidance for troubleshooting
-
-Version 0.8.4 – Last Updated July 23, 2025
-- Fixed bug where reloading the same file would not reset the file input
-- Added logic to find the highest existing cue number when adding new cues
-- Improved cue number validation to prevent duplicates
-- Fixed orphan cues - now when a cue is played by its explicit line play button and then the cue is played with the Show Control GO button, the explicit cue stops and the GO button cue plays
-- Update UI upon entering edit mode
-- Added logic to prevent multiple instances of the same cue from playing simultaneously
-
-Licensed under the MIT License:
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+For commercial licensing inquiries, contact: TheatreCuePlayer@gmail.com
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -1503,16 +1449,25 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             </div>
 
             <div class="credits">
-                <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
-                    Blinn College-Brenham Campus | kevin.patrick@blinn.edu</p>
-                <p><strong>Coded by:</strong> Claude.AI</p>
-                <p><strong>Version:</strong> 0.9.1 | <strong>Last Update:</strong> July 27, 2025</p>
-                <p style="margin-top: 1rem; font-style: italic;">Beta Version - Feedback Welcome</p>
-                <p style="font-size: 0.8rem; color: #aaa; margin-top: 1rem;">
-                    <strong>License:</strong> <a href="https://opensource.org/licenses/MIT" style="color: #ffd700;">MIT
-                        License</a> – Free to use, modify, and share.
+                <p><strong>Designed by:</strong> Kevin Patrick<br>
+                    <a href="mailto:TheatreCuePlayer@gmail.com" style="color: #007bff;">TheatreCuePlayer@gmail.com</a>
                 </p>
+                <p><strong>Refactored by:</strong> Google Gemini 3 Pro</p>
+                <p><strong>Version:</strong> 0.9.6 | <strong>Last Update:</strong> January 1, 2026</p>
 
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #444;">
+                    <p style="font-size: 0.9rem; color: #ffd700; margin-bottom: 0.5rem;">
+                        <strong>© 2026 Kevin Patrick. All Rights Reserved.</strong>
+                    </p>
+                    <p style="font-size: 0.8rem; color: #aaa; line-height: 1.4;">
+                        This work is licensed under a <a href="http://creativecommons.org/licenses/by-nc-nd/4.0/"
+                            target="_blank" style="color: #007bff;">Creative Commons
+                            Attribution-NonCommercial-NoDerivatives 4.0 International License</a>.
+                    </p>
+                    <p style="font-size: 0.8rem; color: #ccc; margin-top: 5px;">
+                        Free for educational use. Do not sell. Do not modify.
+                    </p>
+                </div>
             </div>
 
             <input type="file" id="folderInput" webkitdirectory multiple style="display: none;">
