@@ -1386,6 +1386,56 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         .reorder-row.drag-over {
             border-top: 2px solid #007bff;
         }
+
+        /* Active Cue Card Styling */
+        .active-cue-card {
+            background: #222;
+            border-left: 4px solid #007bff;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .active-cue-card.fade-type {
+            border-left-color: #ffc107;
+        }
+
+        .active-cue-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .active-cue-time {
+            display: flex;
+            justify-content: space-between;
+            font-family: monospace;
+            color: #aaa;
+            font-size: 0.8rem;
+        }
+
+        .active-cue-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .loop-badge {
+            background: #007bff;
+            color: white;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
     </style>
 </head>
 
@@ -1476,6 +1526,21 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             </div>
 
             <div id="sidebar" class="sidebar">
+                <div class="section" id="activeCuesSection">
+                    <h3>Currently Playing</h3>
+
+                    <div class="master-vu-meter">
+                        <div class="vu-meter-label">Master Level</div>
+                        <div class="vu-meter-bar">
+                            <div id="levelIndicator" class="vu-meter-level"></div>
+                        </div>
+                    </div>
+
+                    <div id="activeCuesList" style="display: flex; flex-direction: column; gap: 8px; min-height: 20px;">
+                        <div style="font-size: 0.8rem; color: #666; text-align: center; padding: 10px;">No cues playing
+                        </div>
+                    </div>
+                </div>
                 <div class="section">
                     <h3>Show Control</h3>
                     <div class="controls">
@@ -2099,8 +2164,16 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
                 const instanceId = Date.now() + Math.random();
                 const instanceData = {
-                    source, gainNode, fadeNode: fadeGain, pannerNode: panner,
-                    id: instanceId, isFading: false
+                    source,
+                    gainNode,
+                    fadeNode: fadeGain,
+                    pannerNode: panner,
+                    id: instanceId,
+                    isFading: false,
+                    // NEW METADATA
+                    playStartTime: this.ctx.currentTime,
+                    totalDuration: singleDuration,
+                    trimStart: startTime // To calculate absolute file time if needed
                 };
                 session.instances.push(instanceData);
             }
@@ -2144,7 +2217,12 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 const fadeSession = {
                     type: 'fade',
                     targetSession: targetSession, // Reference to audio session
-                    endTime: now + duration
+                    endTime: now + duration,
+                    // NEW METADATA
+                    startTime: now,
+                    duration: duration,
+                    cueNum: cue.cueNumber,
+                    label: cue.label
                 };
                 this.playingCues.set(String(cue.cueNumber), fadeSession);
 
@@ -2905,6 +2983,8 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 this.setupKeyboardShortcuts();
                 this.updateHeaderDisplay();
                 this.startClock();
+                // Start Dashboard Monitor
+                this.startActiveCueMonitor();
 
                 // Fix Auto-Follow: Bind audio engine callback
                 this.app.audio.onCueEnded = this.onCueEnded.bind(this);
@@ -4072,6 +4152,96 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                         clockEl.textContent = timeString;
                     }
                 }, 1000);
+            }
+
+            formatSeconds(seconds) {
+                if (isNaN(seconds) || seconds < 0) return "0:00";
+                const m = Math.floor(seconds / 60);
+                const s = Math.floor(seconds % 60);
+                // For this dashboard, let's use M:SS
+                return `${m}:${s.toString().padStart(2, '0')}`;
+            }
+
+            startActiveCueMonitor() {
+                const container = document.getElementById('activeCuesList');
+                if (!container) return;
+
+                const update = () => {
+                    requestAnimationFrame(update);
+
+                    // 1. Get Active Sessions
+                    const playingCues = this.app.audio.playingCues;
+
+                    if (playingCues.size === 0) {
+                        if (container.innerHTML !== '<div style="font-size: 0.8rem; color: #666; text-align: center; padding: 10px;">No cues playing</div>') {
+                            container.innerHTML = '<div style="font-size: 0.8rem; color: #666; text-align: center; padding: 10px;">No cues playing</div>';
+                        }
+                        return;
+                    }
+
+                    let html = '';
+                    const now = this.app.audio.ctx.currentTime;
+
+                    playingCues.forEach((session, cueKey) => {
+                        const cue = this.app.state.getCue(cueKey);
+                        if (!cue) return;
+
+                        if (session.type === 'audio') {
+                            // Audio Logic
+                            if (session.instances && session.instances.length > 0) {
+                                const inst = session.instances[session.instances.length - 1]; // Latest
+
+                                // Time Math
+                                const elapsed = now - inst.playStartTime;
+                                const duration = inst.totalDuration;
+                                const remaining = Math.max(0, duration - elapsed);
+                                const progress = Math.min(100, (elapsed / duration) * 100);
+
+                                // Loop Logic
+                                const totalLoops = cue.loop || 1;
+                                const currentLoop = session.instances ? session.instances.length : 1;
+                                const loopText = (totalLoops === 0 || totalLoops === 999) ? `Loop ${currentLoop} of ∞` : `Loop ${currentLoop} of ${totalLoops}`;
+
+                                html += `
+                                <div class="active-cue-card">
+                                    <div class="active-cue-header">
+                                        <span>Q${cue.cueNumber}: ${cue.label}</span>
+                                        ${(totalLoops > 1 || totalLoops === 0) ? `<span class="loop-badge">${loopText}</span>` : ''}
+                                    </div>
+                                    <div class="active-cue-time">
+                                        <span>${this.formatSeconds(elapsed)} <span style="font-size:0.7em; opacity:0.7;">elapsed</span></span>
+                                        <span><span style="font-size:0.7em; opacity:0.7;">remaining</span> -${this.formatSeconds(remaining)}</span>
+                                    </div>
+                                    <div class="active-cue-progress" style="width: ${progress}%"></div>
+                                </div>`;
+                            }
+                        }
+                        else if (session.type === 'fade') {
+                            // Fade Logic
+                            const elapsed = now - session.startTime;
+                            const duration = session.duration;
+                            const remaining = Math.max(0, duration - elapsed);
+                            const progress = Math.min(100, (elapsed / duration) * 100);
+
+                            html += `
+                            <div class="active-cue-card fade-type">
+                                <div class="active-cue-header">
+                                    <span>Fade Q${cue.cueNumber}</span>
+                                    <span style="color:#ffc107">Fading</span>
+                                </div>
+                                <div class="active-cue-time">
+                                    <span>${this.formatSeconds(elapsed)} <span style="font-size:0.7em; opacity:0.7;">elapsed</span></span>
+                                    <span><span style="font-size:0.7em; opacity:0.7;">remaining</span> -${this.formatSeconds(remaining)}</span>
+                                </div>
+                                <div class="active-cue-progress" style="background: rgba(255, 193, 7, 0.5); width: ${progress}%"></div>
+                            </div>`;
+                        }
+                    });
+
+                    container.innerHTML = html;
+                };
+
+                update();
             }
 
             updateHeaderDisplay() {
