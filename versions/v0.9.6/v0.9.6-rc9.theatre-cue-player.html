@@ -1740,6 +1740,105 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         </div>
     </div>
 
+    <!-- Manual Modal -->
+    <div id="manualModal" class="manual-modal" style="display: none;">
+        <div class="manual-content">
+            <div class="manual-header">
+                <h2>📖 User Manual</h2>
+                <button onclick="closeManual()" class="modal-close">&times;</button>
+            </div>
+            <div class="manual-body">
+                <h1>Getting Started</h1>
+                <p><strong>Theatre Cue Player</strong> is a professional browser-based audio playback system designed
+                    for live theatre. It runs entirely in your browser—no installation required.</p>
+
+                <h3>File Management</h3>
+                <ul>
+                    <li><strong>Load Audio Folder:</strong> Select the folder on your computer that contains all your
+                        sound files. This grants the app permission to play them.</li>
+                    <li><strong>Load Cue File:</strong> Open a previously saved <code>.json</code> cue list.</li>
+                    <li><strong>Save Cue File:</strong> Saves your current work. Use "Save As" to create backups.</li>
+                </ul>
+
+                <h1>Show Control</h1>
+                <p>Run your show using the keyboard or mouse.</p>
+                <table>
+                    <tr>
+                        <th>Action</th>
+                        <th>Key</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><strong>GO</strong></td>
+                        <td>Spacebar</td>
+                        <td>Plays the next cue and advances the playhead.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>STOP ALL</strong></td>
+                        <td>Esc</td>
+                        <td>Immediately silences all active audio.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Fade All</strong></td>
+                        <td>Shift + Esc</td>
+                        <td>Fades out all active audio over 5 seconds.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Next/Prev</strong></td>
+                        <td>↑ / ↓</td>
+                        <td>Move the blue playhead selection.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Play Selected</strong></td>
+                        <td>Enter</td>
+                        <td>Plays the specifically selected (blue) cue.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Stop Selected</strong></td>
+                        <td>Backspace</td>
+                        <td>Stops only the currently selected cue.</td>
+                    </tr>
+                </table>
+
+                <h1>Edit Mode</h1>
+                <p>Click the <strong>Edit Mode</strong> button to unlock these features:</p>
+                <ul>
+                    <li><strong>Add Audio Cue:</strong> Inserts a new cue below the selected row.</li>
+                    <li><strong>Add Fade Cue:</strong> Inserts a fade instruction. Auto-targets the audio cue above it.
+                    </li>
+                    <li><strong>Renumber:</strong> Bulk renumber cues (e.g., 1-10 or A-Z).</li>
+                    <li><strong>Reorder:</strong> Drag and drop cues to change their sequence.</li>
+                    <li><strong>Waveform Editor:</strong> Click the <strong>∿</strong> button on any audio cue to trim
+                        start/end times or set precise fade curves.</li>
+                </ul>
+
+                <h1>Hotkeys & Overlap</h1>
+                <p>Trigger sound effects instantly, independent of the main cue list (great for doorbells, thunder,
+                    etc.).</p>
+                <ul>
+                    <li><strong>Playback:</strong> Press numbers <strong>1–0</strong> to play the assigned cue.</li>
+                    <li><strong>Overlap:</strong> Pressing a hotkey repeatedly will layer the sound (e.g., multiple
+                        gunshots).</li>
+                    <li><strong>Assignment:</strong> In Edit Mode, select a cue (blue row) and press <strong>Shift +
+                            Number</strong> to assign it.</li>
+                </ul>
+
+                <h1>Troubleshooting</h1>
+                <ul>
+                    <li><strong>Red "X" on Cue:</strong> The audio file cannot be found. Ensure you have loaded the
+                        correct Audio Folder.</li>
+                    <li><strong>No Sound:</strong> Check the Master Level meter in the sidebar. Ensure your device
+                        volume is up.</li>
+                </ul>
+
+                <br><br>
+                <div style="text-align: center;">
+                    <button onclick="closeManual()" class="btn btn-primary btn-lg">Close Manual</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- WAVEFORM EDITOR MODAL -->
     <!-- WAVEFORM EDITOR MODAL (UPDATED) -->
     <!-- WAVEFORM EDITOR MODAL (UPDATED) -->
@@ -3293,10 +3392,17 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
                             // Check for Modal First
                             const selectionModal = document.getElementById('selectionModal');
+                            const manualModal = document.getElementById('manualModal');
+
                             if (selectionModal && selectionModal.style.display !== 'none') {
                                 selectionModal.style.display = 'none';
                                 document.body.focus();
                                 return; // CRITICAL: Stop here, do not stop audio
+                            }
+
+                            if (manualModal && manualModal.style.display !== 'none') {
+                                manualModal.style.display = 'none';
+                                return;
                             }
 
                             if (!this.helpMode) {
@@ -5100,7 +5206,28 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         window.jumpToFirst = () => app.ui.jumpToFirst();
 
         // Polished Actions
+        window.startRenumber = () => app.ui.startRenumber();
+        window.closeRenumberModal = () => app.ui.closeRenumberModal();
+        window.applyRenumber = () => app.ui.applyRenumber();
 
+        // --- Manual Modal Logic ---
+        window.showManual = () => {
+            const modal = document.getElementById('manualModal');
+            if (modal) modal.style.display = 'flex';
+        };
+
+        window.closeManual = () => {
+            const modal = document.getElementById('manualModal');
+            if (modal) modal.style.display = 'none';
+        };
+
+        // Close Manual when clicking outside the content box
+        window.onclick = (event) => {
+            const modal = document.getElementById('manualModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
         window.editShowName = () => {
             if (!app.ui.editMode) {
                 alert("Enter Edit Mode to change the Show Title.");
