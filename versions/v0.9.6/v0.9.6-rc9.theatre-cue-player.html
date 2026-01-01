@@ -1622,9 +1622,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                                 class="help-icon inline"
                                 onclick="showHelp('Ctrl+Y - Redo', 'Redo the last undone operation (only works in Edit Mode). Redo history is cleared when new edits are made.', event)">?</span>
                         </div>
-                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Shift+F2-F10:</strong>
-                            Assign Hotkey<span class="help-icon inline"
-                                onclick="showHelp('Shift+F Keys - Assign Hotkeys', 'In Edit Mode: Assign F2-F10 keys to specific cues for instant triggering. Great for sound effects!', event)">?</span>
+                        <div style="margin-bottom: 0.5rem;"><strong style="color: #ffd700;">Shift + 1-0:</strong> Assign
+                            Hotkey / <strong>1-0:</strong> Play Hotkey<span class="help-icon inline"
+                                onclick="showHelp('Number Keys - Hotkeys', 'In Edit Mode: Assign 1-0 keys (Shift+Num) to cues. Press Number key to Play. Works on all devices (Chromebooks included).', event)">?</span>
                         </div>
                     </div>
                     <div id="hotkeyAssignments" style="margin-top: 0.8rem; font-size: 0.75rem; color: #aaa;">
@@ -1941,7 +1941,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 draw();
             }
 
-            async playCue(cueNumber) {
+            async playCue(cueNumber, options = { overlap: false }) {
                 await this.init();
                 const cue = this.state.getCue(cueNumber);
                 if (!cue) return;
@@ -1951,31 +1951,37 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 // Reset Stop All State
                 if (this.stopAllCalled) this.clearPendingTimeouts();
 
-                // Stop existing instances logic (Restart behavior)
-                if (this.playingCues.has(cueKey)) {
-                    this.stopCue(cueKey);
-                }
-
-                // Clear any existing pre-wait delay
-                if (this.delayTimeouts.has(cueKey)) {
-                    clearTimeout(this.delayTimeouts.get(cueKey));
-                    this.delayTimeouts.delete(cueKey);
+                // RESET LOGIC: Only stop if overlap is NOT requested
+                if (!options.overlap) {
+                    if (this.playingCues.has(cueKey)) {
+                        this.stopCue(cueKey);
+                    }
+                    // Clear delay only on hard restart
+                    if (this.delayTimeouts.has(cueKey)) {
+                        clearTimeout(this.delayTimeouts.get(cueKey));
+                        this.delayTimeouts.delete(cueKey);
+                    }
                 }
 
                 // --- CREATE SESSION & MASTER GAIN ---
-                // We create it HERE to ensure it persists across loop iterations
-                const masterGain = this.ctx.createGain();
-                masterGain.connect(this.masterGain);
-                masterGain.gain.value = 1;
+                // If overlapping, we might already have a session. Don't overwrite it if it exists.
+                let session = this.playingCues.get(cueKey);
 
-                const session = {
-                    type: cue.type, // 'audio' or 'fade'
-                    masterGain: masterGain,
-                    instances: [],
-                    isStopping: false
-                };
-                this.playingCues.set(cueKey, session);
-                console.log(`[SessionDebug] Created Session for Cue ${cueKey}. MG Value: ${masterGain.gain.value}`);
+                if (!session) {
+                    const masterGain = this.ctx.createGain();
+                    masterGain.connect(this.masterGain);
+                    masterGain.gain.value = 1;
+
+                    session = {
+                        type: cue.type, // 'audio' or 'fade'
+                        masterGain: masterGain,
+                        instances: [],
+                        isStopping: false
+                    };
+                    this.playingCues.set(cueKey, session);
+                    console.log(`[SessionDebug] Created Session for Cue ${cueKey}. MG Value: ${masterGain.gain.value}`);
+                }
+
 
 
                 // IMMEDIATE: Notify UI
@@ -2452,6 +2458,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 this.numberingMode = 'numeric'; // 'numeric' or 'alpha'
                 this.lastSaved = null;
                 this.isDirty = false;
+                this.hotkeyAssignments = new Map();
             }
 
             loadProject(json) {
@@ -2460,8 +2467,10 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 this.showName = json.showName || 'Untitled Show';
 
                 // Restore hotkeys
-                if (json.hotkeyAssignments && window.app && window.app.state) {
-                    this.hotkeyAssignments = new Map(Object.entries(json.hotkeyAssignments || {}));
+                if (json.hotkeyAssignments) {
+                    this.hotkeyAssignments = new Map(Object.entries(json.hotkeyAssignments));
+                } else {
+                    this.hotkeyAssignments = new Map();
                 }
 
                 // Restore numbering mode
@@ -2479,6 +2488,28 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             getCue(cueNumber) {
                 return this.cues.find(c => c.cueNumber === cueNumber);
             }
+
+            assignHotkey(slot, cueNumber) {
+                if (!this.hotkeyAssignments) this.hotkeyAssignments = new Map();
+                this.hotkeyAssignments.set(String(slot), String(cueNumber));
+                this.saveUndoState(`Assign Hotkey ${slot} to Cue ${cueNumber}`);
+            }
+
+            getHotkeyCue(slot) {
+                if (!this.hotkeyAssignments) return null;
+                return this.hotkeyAssignments.get(String(slot));
+            }
+
+            toJSON() {
+                return {
+                    cues: this.cues,
+                    hotkeyAssignments: Object.fromEntries(this.hotkeyAssignments || new Map()),
+                    showName: this.showName,
+                    numberingMode: this.numberingMode,
+                    lastSaved: this.lastSaved
+                };
+            }
+
 
             getFile(path) {
                 return this.files.get(path);
@@ -3246,7 +3277,10 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                                     }
                                 }
                             }
+
                             break;
+
+
 
                         case ' ': // Spacebar = GO
                             event.preventDefault();
@@ -3321,6 +3355,48 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                             break;
 
                         // Todo: Add Update/Delete/Undo/Redo handlers mapping to state
+                    }
+
+                    // Handle Number Keys (Digit1-Digit0) independent of Shift/Caps
+                    if (event.code && event.code.startsWith('Digit') && !this.helpMode) {
+                        // Check input focus (redundant check but safe)
+                        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+                        const digit = event.code.replace('Digit', ''); // '1', '2' ... '0'
+                        // Slot logic: '1'->'1', '0'->'10'
+                        const slot = digit === '0' ? '10' : digit;
+
+                        if (shiftKey && this.editMode) {
+                            // ASSIGNMENT: Shift + Number
+                            // Use currentCueIndex as the "Selected" cue (what the user clicked/sees as active)
+                            if (this.app.state.currentCueIndex !== -1 && this.app.state.cues[this.app.state.currentCueIndex]) {
+                                const cue = this.app.state.cues[this.app.state.currentCueIndex];
+                                this.app.state.assignHotkey(slot, cue.cueNumber);
+                                this.showTemporaryFeedback(`Hotkey ${slot} assigned to Cue ${cue.cueNumber} 📌`);
+                            } else {
+                                this.showTemporaryFeedback(`Select a cue to assign to Hotkey ${slot} ⚠️`);
+                            }
+                        } else if (!shiftKey) {
+                            // PLAYBACK: Number only (No Shift)
+                            // Note: If user presses Ctrl+1 or Alt+1 we generally assume Hotkey unless specific shortcut exists?
+                            // Current request implies plain numbers. Let's block if Ctrl is held to avoid conflicts?
+                            // The previous code didn't block Ctrl. I'll stick to 'else' which catches unshifted.
+                            // Actually previous code was `if (shiftKey ...)` else `...`.
+                            // Safest is to allow it unless we know it conflicts.
+
+                            const targetCueNum = this.app.state.getHotkeyCue(slot);
+                            if (targetCueNum) {
+                                event.preventDefault();
+                                this.app.audio.playCue(targetCueNum, { overlap: true });
+
+                                // Visual Feedback
+                                const btn = document.getElementById(`hotkeyBtn${slot}`);
+                                if (btn) {
+                                    btn.style.transform = "scale(0.95)";
+                                    setTimeout(() => btn.style.transform = "scale(1)", 100);
+                                }
+                            }
+                        }
                     }
                 });
 
@@ -5005,6 +5081,24 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         window.fadeAll = () => app.audio.fadeAll();
         window.goNext = () => app.ui.goNext();
         window.jumpToCue = () => app.ui.jumpToCue();
+
+        window.showHotkeyAssignments = () => {
+            if (!app || !app.state || !app.state.hotkeyAssignments || app.state.hotkeyAssignments.size === 0) {
+                alert("No Hotkeys Assigned.\n\nTo assign, enter Edit Mode (E), select a cue, and press Shift + Number (1-0).");
+                return;
+            }
+            let msg = "Current Hotkey Assignments:\n\n";
+            const sortedKeys = Array.from(app.state.hotkeyAssignments.keys()).sort((a, b) => {
+                const nA = parseInt(a), nB = parseInt(b);
+                return nA - nB;
+            });
+            sortedKeys.forEach(key => {
+                const cueNum = app.state.hotkeyAssignments.get(key);
+                const displayKey = key === '10' ? '0' : key;
+                msg += `Key [${displayKey}]: Play Cue ${cueNum}\n`;
+            });
+            alert(msg);
+        };
         window.jumpToFirst = () => app.ui.jumpToFirst();
 
         // Polished Actions
