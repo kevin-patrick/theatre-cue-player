@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎭%3C/text%3E%3C/svg%3E">
+    <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎭%3C/text%3E%3C/svg%3E">
     <title>Theatre Cue Player</title>
     <style>
         * {
@@ -11,7 +13,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
@@ -21,37 +23,37 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .container {
             text-align: center;
             max-width: 1000px;
             padding: 2rem;
         }
-        
+
         .logo {
             font-size: 3rem;
             margin-bottom: 1rem;
         }
-        
+
         h1 {
             color: #ffd700;
             font-size: 2.5rem;
             margin-bottom: 1rem;
         }
-        
+
         .tagline {
             font-size: 1.2rem;
             color: #ccc;
             margin-bottom: 3rem;
         }
-        
+
         .version-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 2rem;
             margin-bottom: 3rem;
         }
-        
+
         .version-card {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 12px;
@@ -60,34 +62,34 @@
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
         }
-        
+
         .version-card:hover {
             border-color: #ffd700;
             transform: translateY(-5px);
             box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
         }
-        
+
         .version-card.current {
             border-color: #28a745;
             background: rgba(40, 167, 69, 0.2);
         }
-        
+
         .version-card.beta {
             border-color: #ffc107;
             background: rgba(255, 193, 7, 0.2);
         }
-        
+
         .version-card.latest {
             border-color: #dc3545;
             background: rgba(220, 53, 69, 0.2);
         }
-        
+
         .version-number {
             font-size: 1.5rem;
             font-weight: bold;
             margin-bottom: 0.5rem;
         }
-        
+
         .version-status {
             font-size: 0.9rem;
             margin-bottom: 1rem;
@@ -95,22 +97,22 @@
             border-radius: 20px;
             display: inline-block;
         }
-        
+
         .status-stable {
             background: #28a745;
             color: white;
         }
-        
+
         .status-beta {
             background: #ffc107;
             color: #333;
         }
-        
+
         .status-latest {
             background: #dc3545;
             color: white;
         }
-        
+
         .btn {
             display: inline-block;
             padding: 1rem 2rem;
@@ -122,28 +124,28 @@
             transition: all 0.3s ease;
             margin: 0.5rem;
         }
-        
+
         .btn:hover {
             background: #0056b3;
             transform: translateY(-2px);
         }
-        
+
         .btn-primary {
             background: #28a745;
         }
-        
+
         .btn-primary:hover {
             background: #1e7e34;
         }
-        
+
         .btn-latest {
             background: #dc3545;
         }
-        
+
         .btn-latest:hover {
             background: #c82333;
         }
-        
+
         .roadmap {
             background: rgba(255, 193, 7, 0.1);
             border: 2px solid #ffc107;
@@ -152,30 +154,30 @@
             margin: 2rem 0;
             text-align: left;
         }
-        
+
         .roadmap h3 {
             color: #ffc107;
             margin-bottom: 1rem;
             text-align: center;
         }
-        
+
         .roadmap ul {
             list-style-type: none;
             padding: 0;
         }
-        
+
         .roadmap li {
             margin: 0.5rem 0;
             padding-left: 1.5rem;
             position: relative;
         }
-        
+
         .roadmap li:before {
             content: "🚧";
             position: absolute;
             left: 0;
         }
-        
+
         .credits {
             margin-top: 3rem;
             padding-top: 2rem;
@@ -183,361 +185,76 @@
             color: #aaa;
             font-size: 0.9rem;
         }
-        
+
         .credits strong {
             color: #ffd700;
         }
-        
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 2rem;
             }
-            
+
             .logo {
                 font-size: 2rem;
             }
-            
+
             .version-grid {
                 grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="logo">🎭</div>
         <h1>Theatre Cue Player</h1>
-        <p class="tagline">Professional audio cue management for educational theatre</p>
-        
+        <p class="tagline">Professional Audio Cue Management for Educational Theatre</p>
+        <p style="font-size: 1rem; color: #aaa; margin-bottom: 3rem; margin-top: -2.5rem;"><a
+                href="mailto:TheatreCuePlayer@gmail.com"
+                style="color: #aaa; text-decoration: none;">TheatreCuePlayer@gmail.com</a></p>
+
         <div style="margin-bottom: 2rem;">
-            <a href="Theatre-Cue-Player-Tutorial_v0.9.0.zip" class="btn btn-primary">📚 Download Tutorial Package</a>
-            <a href="tcp_v0_8_1_manual.pdf" class="btn" target="_blank">📖 Download Manual (PDF)</a>
-            <a href="tcp_v0_8_1_manual.md" class="btn" target="_blank">📝 View Manual (Markdown)</a>
-            <a href="https://forms.gle/JNS7qw5vzpr4eX5BA" class="btn" target="_blank">🧪 Join Beta Testing</a>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLScqp45vJUbPcSGchKQaiR3bbacF0_fZFo3HR0Lpt3tBn-8HVQ/viewform?usp=sharing&ouid=110816342434718244605" class="btn" target="_blank">💬 Beta Testing Feedback</a>
+            <a href="Theatre-Cue-Player-Tutorial_v0.9.0.zip" class="btn btn-primary">Download Tutorial Package</a>
+            <a href="manual.md" class="btn" target="_blank">View Manual</a>
+            <a href="https://forms.gle/JNS7qw5vzpr4eX5BA" class="btn" target="_blank">Join Beta Testing</a>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLScqp45vJUbPcSGchKQaiR3bbacF0_fZFo3HR0Lpt3tBn-8HVQ/viewform?usp=sharing&ouid=110816342434718244605"
+                class="btn" target="_blank">Beta Testing Feedback</a>
         </div>
-        
+
         <div class="version-grid">
             <div class="version-card latest">
-                <div class="version-number">Version 0.9.1</div>
+                <a href="versions/v0.9.6/v0.9.6-rc9.theatre-cue-player.html" class="btn btn-latest"
+                    style="width: 100%; padding: 1.2rem; margin-bottom: 2rem; font-size: 1.2rem;">Try v0.9.6
+                    Latest</a>
+
+                <div class="version-number">Version 0.9.6</div>
                 <div class="version-status status-latest">LATEST</div>
-                <p>Sound Effect Layering & Enhanced Workflow - Multiple audio instances with professional control:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: 🔊 Multiple Audio Instance Playback - sound effects can now overlap (airhorns, applause, stingers)</li>
-                    <li>SMART: 🎛️ Unified Control - Stop and Fade buttons affect ALL instances of a cue while maintaining professional workflow</li>
-                    <li>ENHANCED: 🎯 Smart Instance Management - tracks multiple playbacks internally while displaying clean cue numbers</li>
-                    <li>FIXED: 🔢 Auto Cue Numbering - proper sequential numbering for new cues</li>
-                    <li>FIXED: 🔄 Loop Completion Cleanup - eliminated infinite silent looping after finite loops complete</li>
-                    <li>FIXED: ⚡ Auto Follow Execution - automation now works correctly after loop completion</li>
-                    <li>TECHNICAL: 🏗️ Enhanced playingCues Map with unique instance identifiers (cueNumber_timestamp)</li>
-                    <li>TECHNICAL: 🔧 Updated stop/fade functions to handle multiple instances while preserving unified control</li>
-                    <li>PRESERVED: ✅ All existing functionality - Stop All, Fade All, keyboard shortcuts, and responsive design intact</li>
-                    <li>KNOWN ISSUES: 🛑 Chromebook keyboard shortcuts and vertical scrolling for cue renumbering. Autofollow and Autocontinue checkbox fix for Chrome on Windows 10</li>
-                    <li>NEXT VERSION ROADMAP: Renumber cues to letters and letter decimals, i.e. A, A.1, A.2, and save default selection to JSON cuefile.</li>
-                    <li>NEXT VERSION ROADMAP: Change the in-point line in the waveform editor to Green, and keep the out-point line red.</li>
-                    <li>NEXT VERSION ROADMAP: Autofollow cues - when a cue will autofollow, change the row to purple and add an up arrow icon ⬆️ to the beginning of its label.</li>
-                    <li>NEXT VERSION ROADMAP: Implement or remove text related to drag-and-drop for renumbering cues.</li>
+
+                <p><strong>The complete educational audio solution.</strong><br>
+                    Includes all features from previous versions plus major stability improvements.</p>
+
+                <ul style="text-align: left; margin: 1.5rem 0; line-height: 1.6;">
+                    <li><strong>Unified Professional Control:</strong> Fade All, Stop All, and individual cue
+                        control.</li>
+                    <li><strong>Multi-Layer Playback:</strong> Smart handling of overlapping audio instances.</li>
+                    <li><strong>Waveform Editor:</strong> Visual editing with fade-in/out curves and precise trim.
+                    </li>
+                    <li><strong>Automation:</strong> Infinite Loops, Auto-Follow, and Auto-Continue capability.</li>
+                    <li><strong>Pro Workflow:</strong> Full Keyboard Shortcuts and Hotkeys.</li>
+                    <li><strong>Undo/Redo:</strong> Comprehensive history for risk-free editing.</li>
+                    <li><strong>Smart Management:</strong> Drag-and-drop ordering, folder-based file loading, and
+                        JSON project saving.</li>
+                    <li><strong>Student Safe:</strong> Dedicated Help Mode and offline Chromebook compatibility.</li>
                 </ul>
-                <a href="versions/v0.9.1/v0.9.1.theatre-cue-player.html" class="btn btn-latest">Try v0.9.1 Latest</a>
             </div>
 
-            <div class="version-card beta">
-                <div class="version-number">Version 0.9.0</div>
-                <div class="version-status status-latest">PREVIOUS</div>
-                <p>Professional Workflow Enhancement - QLab-style editing with smart cue management and comprehensive undo/redo:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: ↶↷ Comprehensive UNDO/REDO system for edit operations with 10-level history</li>
-                    <li>NEW: ⌨️ Ctrl+Z/Ctrl+Y keyboard shortcuts for undo/redo functionality</li>
-                    <li>NEW: 🎹 Professional keyboard shortcuts: A key for Add Audio Cue, F key for Add Fade Cue (Edit Mode only)</li>
-                    <li>SMART: 🎯 Intelligent cue insertion after selected cue instead of always appending to end</li>
-                    <li>SMART: 🔢 QLab-style cue numbering with decimal fallback (2→3, then 2.1, 2.2, etc.)</li>
-                    <li>ENHANCED: 🖱️ Visual cue selection with yellow highlighting for insertion point</li>
-                    <li>INTELLIGENT: 🎵 Smart fade cue targeting based on nearest audio cue to insertion position</li>
-                    <li>PROFESSIONAL: 🧹 Cleaner interface - removed redundant buttons in favor of keyboard shortcuts</li>
-                    <li>INTEGRATED: 🔗 Undo state saving into all edit operations: add cue, delete cue, edit fields, move cues, renumber cues, assign targets, edit pan</li>
-                    <li>PRESERVED: ✅ All existing functionality, tutorial system, and responsive design intact</li>
-                </ul>
-                <a href="versions/v0.9.0/v0.9.0.theatre-cue-player.html" class="btn btn-latest">Try v0.9.0</a>
-            </div>
 
-            <div class="version-card beta">
-                <div class="version-number">Version 0.8.5</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Enhanced Reliability & Professional Workflow - Critical automation fixes and improved user feedback:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>FIXED: 🔧 Emergency Stop (ESC) now completely prevents automation from running after being pressed</li>
-                    <li>IMPROVED: ⏱️ Smart timeout management eliminates delayed automation after stop commands</li>
-                    <li>ENHANCED: 🎯 Next Cue display now accurately shows what will play when GO is pressed</li>
-                    <li>SMART: 🔗 Better handling of complex automation chains (auto-follow and auto-continue)</li>
-                    <li>NEW: ❌ Visual error indicators - missing files now show red background with clear X icons</li>
-                    <li>COMPREHENSIVE: ✅ Automatic validation system checks all cues for problems and data integrity</li>
-                    <li>HELPFUL: ❓ Enhanced help system provides context-specific guidance for troubleshooting issues</li>
-                    <li>PRESERVED: ✅ All existing functionality, tutorial system, and responsive design intact</li>
-                </ul>
-                <a href="versions/v0.8.5/v0.8.5.theatre-cue-player.html" class="btn">Try v0.8.5</a>
-            </div>
-
-            <div class="version-card beta">
-                <div class="version-number">Version 0.8.4</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Critical Bug Fixes - Improved workflow reliability and user experience:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>FIXED: 🔄 File reload issue - same cue file can now be reloaded without page refresh</li>
-                    <li>FIXED: 🔢 Smart cue numbering - new cues use highest existing number + 1 (not array length)</li>
-                    <li>FIXED: ⚠️ Duplicate cue number validation - prevents conflicting cue assignments</li>
-                    <li>FIXED: 🎵 Audio instance tracking - eliminates orphaned audio when using both manual play and GO button</li>
-                    <li>FIXED: ✏️ Edit Mode activation - table cells become immediately clickable when entering Edit Mode</li>
-                    <li>IMPROVED: 🎯 Professional workflow reliability for live show environments</li>
-                    <li>PRESERVED: ✅ All existing functionality, tutorial system, and responsive design intact</li>
-                </ul>
-                <a href="versions/v0.8.4/v0.8.4.theatre-cue-player.html" class="btn">Try v0.8.4</a>
-            </div>
-
-            <div class="version-card beta">
-                <div class="version-number">Version 0.8.2</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>First-Time User Tutorial System - Guided onboarding for educational environments:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: 🎓 Complete first-time user tutorial - guides from landing page to first successful cue</li>
-                    <li>SMART: 🧠 Context-aware tutorial button - "First Time Setup" → "Editor Help" → "Playback Help"</li>
-                    <li>EDUCATIONAL: 📚 Step-by-step guidance through browser folder picker quirks and recursive search</li>
-                    <li>INTUITIVE: ✨ Auto-offered to new users with skip option - localStorage remembers completion</li>
-                    <li>INTEGRATED: 🔧 Built on existing help system - non-intrusive overlay with proper z-index</li>
-                    <li>ACCESSIBLE: 🎯 Line break support and readable text styling - designed for teacher demonstrations</li>
-                    <li>EXTENSIBLE: 🏗️ Framework ready for editor and playback tutorials - foundation for advanced help</li>
-                    <li>PRESERVED: ✅ All existing functionality, responsive design, and audio controls intact</li>
-                </ul>
-                <a href="versions/v0.8.2/v0.8.2.theatre-cue-player.html" class="btn">Try v0.8.2</a>
-            </div>
-
-            <div class="version-card beta">
-                <div class="version-number">Version 0.7.2</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Enhanced File Management & Advanced Cueing - Professional workflow improvements with intelligent navigation:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: 📁 Folder Structure Display - subfolders shown in file picker (Act 1/Cue 1.mp3)</li>
-                    <li>ENHANCED: 🎯 Smart Cue Advancement - GO button now skips entire autofollow/autocontinue chains</li>
-                    <li>IMPROVED: 🔧 Jump to Cue functionality - now preserves auto-continue and auto-follow behavior</li>
-                    <li>REPLACED: ⚡ "Jump to First" with dedicated first cue button for better workflow</li>
-                    <li>OPTIMIZED: 🎛️ Pan UX improvements for better stereo control experience</li>
-                    <li>EXPANDED: 📏 File Picker window sizing - larger, responsive design (600px min, 80% max)</li>
-                    <li>PRESERVED: ✅ All existing functionality, responsive design, and audio controls intact</li>
-                </ul>
-                <a href="versions/v0.7.2/v0.7.2.theatre-cue-player.html" class="btn">Try v0.7.2</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.7.0</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Responsive Design for Educational Devices - Optimized for Chromebooks and tablets:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: 📱 Chromebook Screen Optimization (1366x768) - eliminates horizontal scrolling</li>
-                    <li>IMPROVED: 🎯 Responsive breakpoint with optimized table sizing for educational devices</li>
-                    <li>IMPROVED: 📐 Help system layout - icons no longer push sidebar off-screen</li>
-                    <li>OPTIMIZED: ⚡ Font size and padding specifically tuned for Chromebook displays</li>
-                    <li>OPTIMIZED: 📏 Sidebar width optimized for better space utilization on mid-range screens</li>
-                    <li>ENHANCED: 🖥️ Better support for public school hardware and educational environments</li>
-                    <li>PRESERVED: ✅ All existing functionality, breakpoints, and responsive design intact</li>
-                </ul>
-                <a href="versions/v0.7.0/v0.7.0.theatre-cue-player.html" class="btn">Try v0.7.0</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.6.5</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Small Screen UI Optimization - Streamlined sidebar for Chromebooks and tablets:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: 📱 Optimized for Chromebook screens (1366x768)</li>
-                    <li>🎛️ HELP button moved to header (left of Edit Mode)</li>
-                    <li>📐 Reorganized sidebar: Show Control → Currently Playing → Keyboard Shortcuts → Project</li>
-                    <li>📁 "Quick Actions" renamed to "Project" with View Status added</li>
-                    <li>🗑️ Removed "Project Status" section to save vertical space</li>
-                    <li>📱 Better tablet and small screen compatibility</li>
-                    <li>⚡ All functionality preserved - no features lost</li>
-                    <li>🎯 Improved information hierarchy for mobile use</li>
-                </ul>
-                <a href="versions/v0.6.5/v0.6.5.theatre-cue-player.html" class="btn">Try v0.6.5</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.6.4</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Enhanced User Experience - Professional interface improvements and comprehensive help:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: ❓ Complete waveform editor help system</li>
-                    <li>🎛️ Improved welcome screen with button descriptions</li>
-                    <li>📖 Professional two-column layout for better clarity</li>
-                    <li>🎵 Fixed: Play Full now plays raw audio (no processing)</li>
-                    <li>💡 Comprehensive help icons for all waveform controls</li>
-                    <li>🎯 Better audio folder descriptions (includes subfolders)</li>
-                    <li>✨ Context-sensitive help for zoom, trim, and fade controls</li>
-                    <li>🔧 Enhanced user guidance and workflow clarity</li>
-                </ul>
-                <a href="versions/v0.6.4/v0.6.4.theatre-cue-player.html" class="btn">Try v0.6.4</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.6.2</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Interactive Waveform Editor - Professional audio editing with major stability fixes:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: 🌊 Interactive Waveform Editor (visual audio editing)</li>
-                    <li>🔍 Playhead-centered zoom for professional UX</li>
-                    <li>🎵 Real-time preview with perfect fade-in/fade-out timing</li>
-                    <li>📊 Non-destructive editing (cancel/apply workflow)</li>
-                    <li>🛑 Fixed: Stop All now stops waveform previews</li>
-                    <li>🔧 Fixed: Multiple audio instances bug resolved</li>
-                    <li>🎛️ Enhanced: S-curve fades for natural sound</li>
-                    <li>⚡ Zero performance impact until editor is opened</li>
-                </ul>
-                <a href="versions/v0.6.2/v0.6.2.theatre-cue-player.html" class="btn">Try v0.6.2</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.6.1</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Waveform Editor improvements and refinements:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>🔧 Enhanced waveform editor stability</li>
-                    <li>⚡ Improved performance and responsiveness</li>
-                    <li>🎛️ Refined pan controls integration</li>
-                    <li>📊 Better visual feedback and user experience</li>
-                    <li>🐛 Bug fixes and stability improvements</li>
-                </ul>
-                <a href="versions/v0.6.1/v0.6.1.theatre-cue-player.html" class="btn">Try v0.6.1</a>
-            </div>
-
-            <div class="version-card beta">
-                <div class="version-number">Version 0.6.0</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Initial Waveform Editor release:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: Interactive Waveform Editor</li>
-                    <li>🔍 Basic zoom & scroll functionality</li>
-                    <li>🎵 Preview playback (with some audio bugs)</li>
-                    <li>📊 Visual waveform with drag handles</li>
-                    <li>⚠️ Known issues: multiple audio instances, fade timing</li>
-                </ul>
-                <a href="versions/v0.6.0/v0.6.0.theatre-cue-player.html" class="btn">Try v0.6.0</a>
-            </div>
-
-            <div class="version-card beta">
-                <div class="version-number">Version 0.5.0</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Enhanced interface and real-time monitoring:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: Horizontal master VU meter for real-time audio monitoring</li>
-                    <li>🎛️ Optimized header layout with left-justified show title</li>
-                    <li>⚡ Enhanced Show Control layout with full-width GO button</li>
-                    <li>🧹 Streamlined interface - removed redundant buttons</li>
-                    <li>📏 Show name truncation to prevent header overflow</li>
-                    <li>🎯 Reorganized Quick Actions section</li>
-                </ul>
-                <a href="versions/v0.5.0/v0.5.0.theatre-cue-player.html" class="btn">Try v0.5.0</a>
-            </div>
-
-            <div class="version-card beta">
-                <div class="version-number">Version 0.4.9</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Enhanced workflow and professional show management:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: Fade All button (fade all playing cues simultaneously)</li>
-                    <li>💾 Hotkey persistence (assignments save/load with projects)</li>
-                    <li>🎭 Show name & file display in header (editable in Edit Mode)</li>
-                    <li>📁 Smart save with folder picker (auto-fallback to Downloads)</li>
-                    <li>🎛️ Compact, persistent sidebar (always visible while scrolling)</li>
-                    <li>⚡ New Project confirmation (prevents accidental data loss)</li>
-                </ul>
-                <a href="versions/v0.4.9/v0.4.9.theatre-cue-player.html" class="btn">Try v0.4.9</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.4.8</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Professional keyboard control and live monitoring:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>Complete keyboard shortcuts (Spacebar=GO, Esc=Stop All)</li>
-                    <li>⌨️ Programmable hotkeys (F2-F12 for instant cue triggering)</li>
-                    <li>📊 Real-time progress indicators with elapsed/remaining time</li>
-                    <li>⚡ Visual feedback for all keyboard actions</li>
-                    <li>🔄 Smart hotkey preservation during renumbering</li>
-                </ul>
-                <a href="versions/v0.4.8/v0.4.8.theatre-cue-player.html" class="btn">Try v0.4.8</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.4.7</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Stereo audio control and creative sound design:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: Balance/Pan controls for stereo field positioning</li>
-                    <li>🎛️ Visual pan indicators (●○○○○ to ○○○○●)</li>
-                    <li>🎯 Preset buttons: L100%, L50%, Center, R50%, R100%</li>
-                    <li>🔧 Custom pan values (-100 to +100)</li>
-                    <li>🎵 Integrated with existing volume controls</li>
-                    <li>⚡ Real-time pan adjustments during playback</li>
-                </ul>
-                <a href="versions/v0.4.7/v0.4.7.theatre-cue-player.html" class="btn">Try v0.4.7</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.4.6</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Loop functionality and enhanced workflow:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: Loop controls (1x, 2x, ∞x)</li>
-                    <li>🔄 Visual loop indicators</li>
-                    <li>Infinite loop support (999+)</li>
-                    <li>Auto-follow after all loops complete</li>
-                    <li>Enhanced duration calculations</li>
-                </ul>
-                <a href="versions/v0.4.6/v0.4.6.theatre-cue-player.html" class="btn">Try v0.4.6</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.4.5</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>Professional workflow enhancement:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: Renumber Cues function (QLab-style)</li>
-                    <li>Live preview before applying changes</li>
-                    <li>Flexible numbering: decimals & custom increments</li>
-                    <li>Range selection: all cues or specific span</li>
-                    <li>Professional modal interface</li>
-                </ul>
-                <a href="versions/v0.4.5/v0.4.5.theatre-cue-player.html" class="btn">Try v0.4.5</a>
-            </div>
-            
-            <div class="version-card beta">
-                <div class="version-number">Version 0.4.4</div>
-                <div class="version-status status-beta">PREVIOUS</div>
-                <p>One-click project setup and enhanced workflow:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>NEW: Load Show Folder (one-click setup)</li>
-                    <li>🎯 Auto-detects audio files AND cue file</li>
-                    <li>⚡ Instant launch into ready-to-run state</li>
-                    <li>📁 Perfect for distributed show packages</li>
-                    <li>🎓 Simplified setup for educational environments</li>
-                </ul>
-                <a href="versions/v0.4.4/v0.4.4.theatre-cue-player.html" class="btn">Try v0.4.4</a>
-            </div>
-            
-            <div class="version-card current">
-                <div class="version-number">Version 0.4.3</div>
-                <div class="version-status status-stable">STABLE</div>
-                <p>Critical trim behavior fixes:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>Fixed: Trim End behavior (0.0s = no trim)</li>
-                    <li>Fixed: File assignment preserves trims</li>
-                    <li>Fixed: Duration calculation accuracy</li>
-                    <li>Improved: Clearer trim semantics</li>
-                </ul>
-                <a href="versions/v0.4.3/v0.4.3.theatre-cue-player.html" class="btn">Try v0.4.3</a>
-            </div>
         </div>
-        
+
         <div class="roadmap">
-            <h3>🗺️ Roadmap</h3>
+            <h3>Roadmap</h3>
             <ul>
                 <li>Advanced tutorial flows (Editor Help, Playback Help)</li>
                 <li>Enhanced accessibility features</li>
@@ -545,15 +262,15 @@
                 <li>Additional export formats</li>
             </ul>
         </div>
-        
+
         <div class="credits">
-            <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director<br>
-            Blinn College-Brenham Campus</p>
-            <p><strong>Coded by:</strong> Claude.AI</p>
+            <p><strong>Designed by:</strong> Kevin Patrick, Technical Theatre Arts Director</p>
             <p style="margin-top: 1rem; font-style: italic;">
-                <strong>License:</strong> MIT License – Free to use, modify, and share<br>
+                <strong>License:</strong> Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International
+                License<br>
             </p>
         </div>
     </div>
 </body>
+
 </html>
