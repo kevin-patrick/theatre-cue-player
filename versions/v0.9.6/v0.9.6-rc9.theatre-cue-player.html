@@ -2444,18 +2444,18 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
         class ProjectState {
             constructor() {
                 this.cues = [];
-                this.files = new Map(); // path -> File object
-                this.showName = 'Untitled Show';
+                this.files = new Map();
+                // FIXED: Removed duplicate 'showName' assignment
                 this.showName = 'Untitled Show';
                 this.currentFileName = 'No file loaded';
-                this.currentCueIndex = 0; // Source of Truth for position
+                this.currentCueIndex = 0;
 
                 this.undoStack = [];
                 this.redoStack = [];
                 this.MAX_UNDO_LEVELS = 10;
                 this.audioFilesLoaded = 0;
-                this.selectedCueIndex = -1;
-                this.numberingMode = 'numeric'; // 'numeric' or 'alpha'
+                // REMOVED: this.selectedCueIndex = -1;
+                this.numberingMode = 'numeric';
                 this.lastSaved = null;
                 this.isDirty = false;
                 this.hotkeyAssignments = new Map();
@@ -2654,8 +2654,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
             getSmartCueNumber() {
                 // Determine insertion context
                 let prevCue = null;
-                if (this.selectedCueIndex !== -1 && this.selectedCueIndex < this.cues.length) {
-                    prevCue = this.cues[this.selectedCueIndex];
+                // Use currentCueIndex (Source of Truth) instead of removed selectedCueIndex
+                if (this.currentCueIndex !== -1 && this.currentCueIndex < this.cues.length) {
+                    prevCue = this.cues[this.currentCueIndex];
                 } else if (this.cues.length > 0) {
                     prevCue = this.cues[this.cues.length - 1];
                 }
@@ -2837,10 +2838,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 }
             }
 
-            selectCueForInsertion(index) {
-                this.selectedCueIndex = index;
-                if (window.app && window.app.ui) window.app.ui.renderCueTable();
-            }
+
 
             updateCueData(cueNumber, field, value) {
                 const cue = this.getCue(cueNumber);
@@ -3228,7 +3226,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                     }
 
                     const key = event.key;
-                    const keyCode = event.code;
+                    // REMOVED: const keyCode = event.code;
                     const ctrlKey = event.ctrlKey || event.metaKey;
                     const shiftKey = event.shiftKey;
 
@@ -3572,7 +3570,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 const project = this.app.state; // Maps to global 'project'
                 const playingCues = this.app.audio.playingCues; // Maps to global 'playingCues'
                 const currentCueIndex = this.app.state.currentCueIndex;
-                const selectedCueIndex = this.app.state.selectedCueIndex; // Need to ensure ProjectState has this
+                // REMOVED: const selectedCueIndex = ...
                 const editMode = this.editMode;
 
                 // VERBATIM LOGIC FROM v0.9.2 updateUI()
