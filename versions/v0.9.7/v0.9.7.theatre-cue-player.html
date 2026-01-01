@@ -3,7 +3,7 @@ Theatre Cue Player
 
 Developed by Kevin Patrick
 
-v0.9.6 - Last Updated January 1, 2026
+v0.9.7 - Last Updated January 1, 2026
   Refactored with Google's Gemini 3 Pro AI. Comprehensive overhaul of the application core. Transitioned from an organically grown 'piecemeal' structure to a modern, standardized methodology. This refactor prioritized code hygiene, stability, and scalability—replacing ad-hoc solutions with deliberate, system-wide logic patterns.
 
 ***LICENSE***
@@ -34,6 +34,10 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
     <title>Theatre Cue Player</title>
     <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎭%3C/text%3E%3C/svg%3E">
+    <!-- JSZip for Exporting Projects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- FileSaver for Saving Zips -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1456,7 +1460,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                     <a href="mailto:TheatreCuePlayer@gmail.com" style="color: #007bff;">TheatreCuePlayer@gmail.com</a>
                 </p>
                 <p><strong>Refactored by:</strong> Google Gemini 3 Pro</p>
-                <p><strong>Version:</strong> 0.9.6 | <strong>Last Update:</strong> January 1, 2026</p>
+                <p><strong>Version:</strong> 0.9.7 | <strong>Last Update:</strong> January 1, 2026</p>
 
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #444;">
                     <p style="font-size: 0.9rem; color: #ffd700; margin-bottom: 0.5rem;">
@@ -1607,6 +1611,11 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                                 onclick="showHelp('New Project', 'Start fresh with empty cue list', event)">?</span></button>
                         <button onclick="showProjectStatus()" class="btn btn-info">View Status<span class="help-icon"
                                 onclick="showHelp('View Status', 'Show project statistics: total cues, ready cues, and available audio files', event)">?</span></button>
+                    </div>
+                    <div class="controls" style="margin-top: 0.6rem;">
+                        <button onclick="app.state.exportProjectZip()" class="btn btn-warning" style="width: 100%;">📦
+                            Export Project to Zip<span class="help-icon"
+                                onclick="showHelp('Export to Zip', 'Bundles all audio files and your cue list into a single Zip file for easy sharing or assignment submission.', event)">?</span></button>
                     </div>
                 </div>
 
@@ -3139,6 +3148,149 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
                 }
                 event.target.value = ''; // Reset
             }
+
+            async exportProjectZip() {
+                if (this.cues.length === 0 && this.files.size === 0) {
+                    alert("Project is empty. Nothing to export.");
+                    return;
+                }
+
+                // 1. Unsaved Changes Check
+                if (this.isDirty) {
+                    if (!confirm("You have unsaved changes. The Zip file will contain your latest work, but your separate local .json file has not been updated. Continue?")) {
+                        return;
+                    }
+                }
+
+                // 2. Load Libraries
+                if (typeof JSZip === 'undefined' || typeof saveAs === 'undefined') {
+                    alert("Export libraries (JSZip/FileSaver) not loaded. Please check internet connection.");
+                    return;
+                }
+
+                const safeName = (this.showName || "Project").replace(/[^a-z0-9]/gi, '_');
+                const fileName = `${safeName}_Project.zip`;
+
+                // 3. Early File Handle Request (Prevents user gesture expiry)
+                let writableHandle = null;
+                let handleName = fileName;
+
+                if (window.showSaveFilePicker) {
+                    try {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: fileName,
+                            types: [{
+                                description: 'Project Archive',
+                                accept: { 'application/zip': ['.zip'] },
+                            }],
+                        });
+                        // Create writable stream immediately to verify access
+                        writableHandle = await handle.createWritable();
+                        handleName = handle.name;
+                    } catch (err) {
+                        if (err.name === 'AbortError') return; // User cancelled
+                        console.warn("Save Picker failed/cancelled, falling back to download:", err);
+                    }
+                }
+
+                // 4. Create Zip
+                const zip = new JSZip();
+                const now = new Date();
+                const offset = now.getTimezoneOffset() * 60000;
+
+                // Add JSON Cue File (Explicit Date)
+                const jsonContent = JSON.stringify(this.toJSON(), null, 2);
+                const correctedNow = new Date(now.getTime() - offset);
+                zip.file(`${safeName}.json`, jsonContent, { date: correctedNow });
+
+                // 4. Add Audio Files
+                let fileCount = 0;
+                let failCount = 0;
+
+                // Show temporary "Zipping..." feedback?
+                if (window.app && window.app.ui) window.app.ui.showTemporaryFeedback("Compressing Project... Please Wait", 5000);
+
+                for (const [path, fileObj] of this.files) {
+                    try {
+                        const fileDate = new Date(fileObj.lastModified || now.getTime());
+                        const correctedFileDate = new Date(fileDate.getTime() - offset);
+                        zip.file(path, fileObj, { date: correctedFileDate });
+                        fileCount++;
+                    } catch (e) {
+                        console.error(`Failed to add ${path} to zip`, e);
+                        failCount++;
+                    }
+                }
+
+                // 5. Generate and Save
+                try {
+                    const blob = await zip.generateAsync({ type: "blob" });
+                    const fileName = `${safeName}_Project.zip`;
+
+                    // 6. Save
+                    if (writableHandle) {
+                        await writableHandle.write(blob);
+                        await writableHandle.close();
+                        if (window.app && window.app.ui) window.app.ui.showTemporaryFeedback(`Exported Project to ${handleName}`);
+                    } else {
+                        // Fallback
+                        saveAs(blob, fileName);
+                        if (window.app && window.app.ui) window.app.ui.showTemporaryFeedback(`Exported ${fileCount} files!`);
+                    }
+
+                    // Success - Clean State
+                    this.isDirty = false;
+                    this.lastSaved = new Date().toISOString();
+                    if (window.app && window.app.ui) window.app.ui.updateHeaderDisplay();
+
+                    return; // Prevent running legacy code below
+
+                    // (Old Logic Removed)
+                    if (false) {
+                        try {
+                            const handle = await window.showSaveFilePicker({
+                                suggestedName: fileName,
+                                types: [{
+                                    description: 'Project Archive',
+                                    accept: { 'application/zip': ['.zip'] },
+                                }],
+                            });
+
+                            const writable = await handle.createWritable();
+                            await writable.write(blob);
+                            await writable.close();
+
+                            // Success - Clean State
+                            this.isDirty = false;
+                            this.lastSaved = new Date().toISOString();
+                            if (window.app && window.app.ui) {
+                                window.app.ui.updateHeaderDisplay();
+                                window.app.ui.showTemporaryFeedback(`Exported Project to ${handle.name}`);
+                            }
+                            return; // Done
+                        } catch (err) {
+                            if (err.name === 'AbortError') return; // User cancelled
+                            console.warn("Save Picker failed, falling back to download:", err);
+                        }
+                    }
+
+                    // Fallback to FileSaver
+                    saveAs(blob, fileName);
+
+                    // Success (Fallback) - Clean State
+                    this.isDirty = false;
+                    this.lastSaved = new Date().toISOString();
+                    if (window.app && window.app.ui) {
+                        window.app.ui.updateHeaderDisplay();
+                        window.app.ui.showTemporaryFeedback(`Exported ${fileCount} files!`);
+                    }
+
+                } catch (e) {
+                    console.error("Zip generation error", e);
+                    alert("Failed to generate zip file: " + e.message);
+                }
+            }
+
         }
 
         /**
