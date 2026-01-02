@@ -173,7 +173,7 @@
         }
 
         .roadmap li:before {
-            content: "🚧";
+            content: "";
             position: absolute;
             left: 0;
         }
@@ -224,47 +224,52 @@
         </div>
 
         <div class="version-grid">
-            <div class="version-card latest">
+            <div class="version-card latest" style="grid-column: 1 / -1; max-width: 800px; margin: 0 auto;">
                 <a href="versions/v0.9.8/TheatreCuePlayer_v0.9.8_Beta.html" class="btn btn-latest"
-                    style="width: 100%; padding: 1.2rem; margin-bottom: 2rem; font-size: 1.2rem;">Try v0.9.8
-                    Beta</a>
+                    style="width: 100%; padding: 1.5rem; margin-bottom: 2rem; font-size: 1.5rem; letter-spacing: 1px;">LAUNCH
+                    APP (v0.9.8)</a>
 
-                <div class="version-number">Version 0.9.8</div>
-                <div class="version-status status-latest">LATEST BETA</div>
+                <div class="version-number">Product Highlights</div>
+                <div class="version-status status-latest">BETA RELEASE</div>
 
-                <p><strong>Major Release Candidate.</strong><br>
-                    Includes new core Export Engine and significant stability updates.</p>
+                <p style="font-size: 1.1rem; margin-bottom: 2rem;"><strong>The complete educational audio
+                        solution.</strong><br>
+                    Professional-grade show control designed specifically for student operators and Chromebook
+                    environments.</p>
 
-                <ul style="text-align: left; margin: 1.5rem 0; line-height: 1.6;">
-                    <li><strong>Export Center:</strong> Generate Cue Sheets (PDF/CSV) and Show Packages (Zip) directly
-                        from browser.</li>
-                    <li><strong>High Precision Clock:</strong> Immediate duration updates with 0.1s accuracy.</li>
-                    <li><strong>Sticky Headers:</strong> New "App Shell" fixed layout for better scrolling.</li>
-                    <li><strong>Optimized Logic:</strong> Rewritten core Audio Engine and standardization of "Trim End".
-                    </li>
-                    <li>All features from v0.9.6 included.</li>
-                </ul>
-            </div>
-
-            <div class="version-card beta">
-                <a href="versions/v0.9.6/v0.9.6-rc9.theatre-cue-player.html" class="btn"
-                    style="width: 100%; padding: 1.2rem; margin-bottom: 2rem; font-size: 1.2rem;">v0.9.6</a>
-
-                <div class="version-number">Version 0.9.6</div>
-                <div class="version-status status-beta">LEGACY</div>
-
-                <p><strong>Previous Stable Release.</strong><br>
-                    Includes all features from previous versions plus major stability improvements.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; text-align: left;">
+                    <div>
+                        <h4
+                            style="color: #ffd700; margin-bottom: 0.5rem; border-bottom: 1px solid #444; padding-bottom: 5px;">
+                            Show Control</h4>
+                        <ul style="line-height: 1.6; padding-left: 1.2rem;">
+                            <li><strong>Unified Workflow:</strong> Fade All, Stop All, and instant "Go" playback.</li>
+                            <li><strong>Multi-Layer Playback:</strong> Seamless overlapping audio instances.</li>
+                            <li><strong>Automation:</strong> Auto-Follow, Auto-Continue, and Infinite Loops.</li>
+                            <li><strong>Hotkeys:</strong> Instant-fire sound effects grid (1-0).</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4
+                            style="color: #ffd700; margin-bottom: 0.5rem; border-bottom: 1px solid #444; padding-bottom: 5px;">
+                            Management</h4>
+                        <ul style="line-height: 1.6; padding-left: 1.2rem;">
+                            <li><strong>Export Center:</strong> Generate printable PDF Cue Sheets and portable Zip
+                                packages.</li>
+                            <li><strong>Waveform Editor:</strong> Visual non-destructive trimming and fading.</li>
+                            <li><strong>Offline First:</strong> Runs locally without internet (perfect for air-gapped
+                                booths).</li>
+                            <li><strong>Student Safe:</strong> "Help Mode" overlay preventing accidental edits.</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="roadmap">
             <h3>Roadmap</h3>
             <ul>
-                <li>Advanced tutorial flows (Editor Help, Playback Help)</li>
-                <li>Enhanced accessibility features</li>
-                <li>Performance optimizations for large projects</li>
-                <li>Additional export formats</li>
+                <li>MIDI / OSC input/output? </li>
             </ul>
         </div>
 

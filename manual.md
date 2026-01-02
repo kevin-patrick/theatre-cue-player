@@ -65,6 +65,10 @@ Click the **Waveform** button on any audio cue to open the editor.
 - **Offline First**: Runs locally on the device (no internet needed after loading).
 - **Help Mode**: Press F1 to enter a "safe mode" where students can click items to learn what they do without changing the show.
 - **Project Saving**: Save your entire cue list (not audio files) as a `.json` file to resume work later.
+- **Export Center**: 
+    - **Cue Sheets**: Export your cue list as a **PDF** (printable) or **CSV** (Excel/Sheets) for stage managers and technicians.
+    - **Show Package (Zip)**: Export a bundle containing your `.json` cue file, a generic `index.html` player, and **ALL your audio files** in a portable Zip.
+    - *Note: PDF and Zip generation features require an active internet connection to load the necessary libraries (jsPDF/JSZip).*
 
 ---
 

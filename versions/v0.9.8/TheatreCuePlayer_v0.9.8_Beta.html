@@ -1604,9 +1604,11 @@ v0.9.8 - Last Updated January 1, 2026
 
                     <div class="controls" style="display: flex; gap: 5px;">
                         <button onclick="window.exportCSV()" class="btn btn-secondary"
-                            style="font-size: 0.75rem; flex: 1;">Export CSV</button>
+                            style="font-size: 0.75rem; flex: 1;">Export CSV<span class="help-icon"
+                                onclick="showHelp('Export CSV', 'Download a spreadsheet (.csv) of your cues for Excel or Google Sheets', event)">?</span></button>
                         <button onclick="window.exportPDF()" class="btn btn-secondary"
-                            style="font-size: 0.75rem; flex: 1;">Export PDF</button>
+                            style="font-size: 0.75rem; flex: 1;">Export PDF<span class="help-icon"
+                                onclick="showHelp('Export PDF', 'Generate a printable PDF cue sheet for stage management', event)">?</span></button>
                     </div>
                 </div>
 
@@ -1716,6 +1718,7 @@ v0.9.8 - Last Updated January 1, 2026
                         sound files. This grants the app permission to play them.</li>
                     <li><strong>Load Cue File:</strong> Open a previously saved <code>.json</code> cue list.</li>
                     <li><strong>Save Cue File:</strong> Saves your current work. Use "Save As" to create backups.</li>
+                    <li><strong>Export Project:</strong> Create Zip packages or visual Cue Sheets (PDF/CSV).</li>
                 </ul>
 
                 <h1>Show Control</h1>
