@@ -2659,6 +2659,15 @@ v0.9.8 - Last Updated January 1, 2026
                     const loopCount = cue.loop || 1;
                     if (loopCount > 1 || loopCount === 0) displayLabel = SYMBOLS.LOOP_PRE + displayLabel;
 
+                    // Calculate Duration (Audio Only)
+                    let durSec = 0;
+                    if (cue.type === 'audio') {
+                        const rawDur = (cue.audioBuffer && cue.audioBuffer.duration) ? cue.audioBuffer.duration : 0;
+                        const effEnd = (cue.endTime && cue.endTime > 0) ? cue.endTime : rawDur;
+                        const start = cue.startTime || 0;
+                        if (effEnd > start) durSec = effEnd - start;
+                    }
+
                     // Target Display
                     let targetDisp = "-";
                     if (cue.type === 'audio') targetDisp = cue.file || "";
@@ -2675,6 +2684,7 @@ v0.9.8 - Last Updated January 1, 2026
                         "Fade In": fmtFromMs(cue.fadeInTime),
                         "Volume": (cue.volume !== undefined ? cue.volume : 100) + "%",
                         "Pan": (cue.pan !== undefined ? cue.pan : 0),
+                        "Duration": durSec > 0 ? fmtTime(durSec) : "",
                         "Trim End": cue.type === 'audio' ? fmtTime(cue.endTime) : "",
                         "Fade Out": cue.type === 'audio' ? fmtFromMs(cue.fadeOutTime) : "",
                         "Loop": (loopCount > 1 ? loopCount + "x" : (loopCount >= 999 ? "∞" : "")),
