@@ -2226,11 +2226,11 @@ v0.9.8 - Last Updated January 1, 2026
 
                 // Timing
                 let startTime = cue.startTime || 0;
-                let singleDuration = cue.audioBuffer.duration - startTime;
-                if (cue.endTime && cue.endTime > 0) {
-                    singleDuration = cue.endTime - startTime;
-                }
-                if (singleDuration <= 0) singleDuration = cue.audioBuffer.duration - startTime;
+                // Fix: Use trimEnd (amount removed from back) instead of endTime (absolute stop)
+                let trimEnd = cue.trimEnd || 0;
+                let singleDuration = cue.audioBuffer.duration - startTime - trimEnd;
+
+                if (singleDuration <= 0) singleDuration = 0.1; // Safety minimum
 
                 // Loop Configuration
                 const totalLoops = (cue.loop !== undefined && cue.loop > 0) ? cue.loop : 1;
@@ -2662,10 +2662,28 @@ v0.9.8 - Last Updated January 1, 2026
                     // Calculate Duration (Audio Only)
                     let durSec = 0;
                     if (cue.type === 'audio') {
-                        const rawDur = (cue.audioBuffer && cue.audioBuffer.duration) ? cue.audioBuffer.duration : 0;
+                        // Priority: audioBuffer -> fileDuration -> 0
+                        let rawDur = 0;
+                        if (cue.audioBuffer && cue.audioBuffer.duration) {
+                            rawDur = cue.audioBuffer.duration;
+                        } else if (cue.fileDuration) {
+                            rawDur = cue.fileDuration;
+                        }
+
                         const effEnd = (cue.endTime && cue.endTime > 0) ? cue.endTime : rawDur;
-                        const start = cue.startTime || 0;
-                        if (effEnd > start) durSec = effEnd - start;
+                        // For Export: Report Trim End as Amount Removed
+                        // If trimEnd is present, use it. If legacy endTime is used, convert.
+                        // But wait, the user wants "Trim End" column to be "Amount Removed".
+                        // So we should export the 'trimEnd' property directly.
+                        if (cue.trimEnd) {
+                            // Correct: Amount Removed
+                        } else if (cue.endTime && cue.endTime > 0 && rawDur > 0) {
+                            // Legacy Conversion: Duration - EndTime
+                            // Actually we should just rely on the new property being set.
+                        }
+
+                        // Recalculate duration for the Duration column
+                        if (rawDur > 0) durSec = Math.max(0, rawDur - (cue.startTime || 0) - (cue.trimEnd || 0));
                     }
 
                     // Target Display
@@ -2685,7 +2703,7 @@ v0.9.8 - Last Updated January 1, 2026
                         "Volume": (cue.volume !== undefined ? cue.volume : 100) + "%",
                         "Pan": (cue.pan !== undefined ? cue.pan : 0),
                         "Duration": durSec > 0 ? fmtTime(durSec) : "",
-                        "Trim End": cue.type === 'audio' ? fmtTime(cue.endTime) : "",
+                        "Trim End": cue.type === 'audio' ? fmtTime(cue.trimEnd) : "",
                         "Fade Out": cue.type === 'audio' ? fmtFromMs(cue.fadeOutTime) : "",
                         "Loop": (loopCount > 1 ? loopCount + "x" : (loopCount >= 999 ? "∞" : "")),
                         "Auto Follow": cue.autoFollow ? SYMBOLS.CHECK : ""
@@ -2755,11 +2773,39 @@ v0.9.8 - Last Updated January 1, 2026
                         cue.audioBuffer = null;
                         connectionCount++;
                         cue.status = 'ready';
+
+                        // Fetch duration for display
+                        this.fetchFileMetadata(this.files.get(cue.file)).then(dur => {
+                            if (dur) {
+                                cue.fileDuration = dur;
+                                if (window.app && window.app.ui) window.app.ui.renderCueTable();
+                            }
+                        });
+
                     } else if (cue.type === 'audio') {
                         cue.status = 'missing';
+                        cue.fileDuration = 0;
                     }
                 }
                 return connectionCount;
+            }
+
+            // Helper to get duration without full decode
+            fetchFileMetadata(file) {
+                return new Promise(resolve => {
+                    const audio = new Audio();
+                    const objectUrl = URL.createObjectURL(file);
+                    audio.onloadedmetadata = () => {
+                        const dur = audio.duration;
+                        URL.revokeObjectURL(objectUrl);
+                        resolve(dur);
+                    };
+                    audio.onerror = () => {
+                        URL.revokeObjectURL(objectUrl);
+                        resolve(0);
+                    };
+                    audio.src = objectUrl;
+                });
             }
 
             saveUndoState(desc) {
@@ -3086,7 +3132,7 @@ v0.9.8 - Last Updated January 1, 2026
                 this.saveUndoState(`Edit ${field} for Cue ${cueNumber}`);
 
                 const conversionFields = ['delay', 'fadeInTime', 'fadeOutTime'];
-                const floatFields = ['startTime', 'endTime', 'volume', 'pan', 'loop'];
+                const floatFields = ['startTime', 'endTime', 'trimEnd', 'volume', 'pan', 'loop'];
 
                 if (conversionFields.includes(field)) {
                     const num = parseFloat(value);
@@ -3102,6 +3148,15 @@ v0.9.8 - Last Updated January 1, 2026
                     cue.file = value;
                     cue.audioBuffer = null; // FORCE RELOAD
                     cue.status = (this.files.has(value)) ? 'ready' : 'missing';
+                    // Polish: Immediate Duration Update
+                    if (this.files.has(value)) {
+                        this.fetchFileMetadata(this.files.get(value)).then(dur => {
+                            if (dur) {
+                                cue.fileDuration = dur;
+                                if (window.app && window.app.ui) window.app.ui.renderCueTable();
+                            }
+                        });
+                    }
                 } else if (field === 'type') {
                     cue[field] = value;
                     cue.audioBuffer = null;
@@ -4105,14 +4160,6 @@ v0.9.8 - Last Updated January 1, 2026
                     // Start of v0.9.2 comments: "playingCues Map to use unique instance identifiers..."
                     // So playingCues.has(cue.cueNumber) might NOT work if keys are instance IDs.
                     // But updateUI used: `const isPlaying = playingCues.has(cue.cueNumber);`
-                    // Wait, looking at lines 3782 in 0.9.2:
-                    // "const isPlaying = playingCues.has(cue.cueNumber);"
-                    // But line 1563 var def: "let playingCues = new Map(); // Map of cueNumber -> {source...}"
-                    // Line 4273: "playingCues.set(instanceId, audioData);"
-                    // So if keys are "1_TIMESTAMP", then .has("1") is FALSE.
-                    // BUT Step 114 snippet showed: "playingCues = new Map(); // Map of cueNumber -> {source...}"
-                    // Step 202 Line 16: "Updated stop/fade functions to handle multiple instances per cue number..."
-                    // "playingCues Map to use unique instance identifiers"
                     // If the original updateUI used .has(cue.cueNumber), and keys are instanceIds, that logic was broken or I misread.
                     // Ah, step 216 shows updateUI:
                     // 3782: const isPlaying = playingCues.has(cue.cueNumber);
@@ -4194,7 +4241,7 @@ v0.9.8 - Last Updated January 1, 2026
                             return this.formatDuration(duration);
                         })()}</td>
                 
-                <td onclick="${editMode && cue.type === 'audio' ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('endTime', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${cue.type === 'audio' ? this.formatTime(cue.endTime) : '-'}</td>
+                <td onclick="${editMode && cue.type === 'audio' ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('trimEnd', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${cue.type === 'audio' ? this.formatTime(cue.trimEnd) : '-'}</td>
                 
                 <td onclick="${editMode && cue.type === 'audio' ? `app.state.setCurrentCueIndex(${i}); setTimeout(() => app.ui.editField('fadeOutTime', '${cue.cueNumber}'), 10)` : `app.state.setCurrentCueIndex(${i})`}">${cue.type === 'audio' ? this.formatSecondsFromMs(cue.fadeOutTime) : '-'}</td>
                 
@@ -4245,22 +4292,25 @@ v0.9.8 - Last Updated January 1, 2026
             }
 
             formatDuration(seconds) {
-                if (!seconds) return '0:00';
+                if (!seconds) return '0:00.0';
                 const m = Math.floor(seconds / 60);
-                const s = Math.floor(seconds % 60);
-                return `${m}:${s.toString().padStart(2, '0')} `;
+                const s = (seconds % 60).toFixed(1);
+                return `${m}:${s.padStart(4, '0')} `;
             }
 
             calculateCueDuration(cue) {
-                if (!cue.audioBuffer) return 0;
-                const trimStart = cue.startTime || 0;
-                const trimEnd = cue.endTime || 0; // trim from end? Or absolute time? 
-                // Logic in v0.9.2: "How long this cue will play: (File Duration - Trim Start - Trim End)"
-                // But trimEnd in v0.9.2 view Step 204 implies "Math.max(0, Math.min(duration - waveformPlayheadPosition, duration - 0.1))"
-                // And "Duration... (File Duration - Trim Start - Trim End)"
-                // So trimEnd is amount removed from end.
-                const duration = cue.audioBuffer.duration - trimStart - trimEnd;
-                return Math.max(0, duration);
+                // Logic: RawDuration - StartTime - TrimEnd
+                // Priority: audioBuffer -> fileDuration -> 0
+                let rawDur = 0;
+                if (cue.audioBuffer && cue.audioBuffer.duration) {
+                    rawDur = cue.audioBuffer.duration;
+                } else if (cue.fileDuration) {
+                    rawDur = cue.fileDuration;
+                }
+
+                if (rawDur === 0) return 0;
+
+                return Math.max(0, rawDur - (cue.startTime || 0) - (cue.trimEnd || 0));
             }
 
             // --- Playback Handlers (Called by Global Shims) ---
