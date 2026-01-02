@@ -28,7 +28,8 @@ v0.9.8 - Last Updated January 1, 2026
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #1a1a1a;
             color: #fff;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
@@ -112,10 +113,8 @@ v0.9.8 - Last Updated January 1, 2026
         .cue-list {
             flex: 1;
             overflow-y: auto;
-            padding: 1rem;
+            padding: 0rem;
             background: #cccccc;
-            max-height: calc(100vh - 120px);
-            /* Account for header height */
         }
 
         .cue-table {
@@ -255,10 +254,7 @@ v0.9.8 - Last Updated January 1, 2026
             padding: 0.6rem;
             border-left: 1px solid #444;
             overflow-y: auto;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            max-height: 100vh;
+            height: 100%;
         }
 
         .section {
