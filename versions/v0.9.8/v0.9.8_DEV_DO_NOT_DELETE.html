@@ -1383,7 +1383,8 @@ v0.9.8 - Last Updated January 1, 2026
                     onclick="showHelp('Quick Start', 'View the 5-step quick start guide', event)">?</span></button>
             <button onclick="startTutorial()" id="tutorialButton"
                 class="btn btn-outline-info first-time-setup-btn">Tutorial</button>
-            <button onclick="editModeFromLanding()" class="btn btn-info">Edit Mode<span class="help-icon"
+            <button id="editModeBtn" onclick="editModeFromLanding()" class="btn btn-info">Edit Mode<span
+                    class="help-icon"
                     onclick="showHelp('Edit Mode', 'Enable editing to modify cues, add new ones, and change settings', event)">?</span></button>
             <div id="editModeActions">
                 <button onclick="addAudioCue()" class="btn btn-primary">Add Audio Cue<span class="help-icon"
@@ -3888,6 +3889,14 @@ v0.9.8 - Last Updated January 1, 2026
                             }
                             break;
 
+                        case 'e':
+                        case 'E':
+                            // Toggle Edit Mode
+                            if (!this.helpMode && !ctrlKey && !shiftKey) {
+                                this.toggleEditMode();
+                            }
+                            break;
+
                         // Todo: Add Update/Delete/Undo/Redo handlers mapping to state
                     }
 
@@ -4379,10 +4388,8 @@ v0.9.8 - Last Updated January 1, 2026
 
                 // DOM Updates
                 const actions = document.getElementById('editModeActions');
-                // Robust Selector: Find by onclick attribute (which never changes) OR text content
-                // The previous textContent check failed because innerHTML included a <span>
-                const btn = document.querySelector('button[onclick*="editModeFromLanding"]') ||
-                    Array.from(document.querySelectorAll('button')).find(b => b.innerHTML.includes('Edit Mode') || b.innerHTML.includes('Exit Edit'));
+                // Robust Selector: Use ID
+                const btn = document.getElementById('editModeBtn');
 
                 if (actions) {
                     actions.style.display = this.editMode ? 'block' : 'none';
