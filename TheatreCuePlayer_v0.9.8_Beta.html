@@ -5363,7 +5363,65 @@ v0.9.8 - Last Updated January 1, 2026
 
                 const source = ctx.createBufferSource();
                 source.buffer = buffer;
-                source.connect(ctx.destination);
+
+                // --- FADE PREVIEW LOGIC ---
+                const gainNode = ctx.createGain();
+                source.connect(gainNode);
+                gainNode.connect(ctx.destination);
+
+                // Initial Gain
+                gainNode.gain.value = 1;
+
+                if (mode === 'selection') {
+                    // Apply Fade In / Out logic relative to the playback
+                    const fadeIn = parseFloat(document.getElementById('wfFadeIn').value) || 0;
+                    const fadeOut = parseFloat(document.getElementById('wfFadeOut').value) || 0;
+
+                    const now = ctx.currentTime;
+
+                    // Fade In
+                    if (fadeIn > 0) {
+                        gainNode.gain.setValueAtTime(0, now);
+                        if (this.app.audio && this.app.audio.createSCurveFade) {
+                            this.app.audio.createSCurveFade(gainNode, 0, 1, fadeIn, now);
+                        } else {
+                            gainNode.gain.linearRampToValueAtTime(1, now + fadeIn);
+                        }
+                    }
+
+                    // Fade Out
+                    if (fadeOut > 0) {
+                        // Duration of playback in selection mode is (effectiveEnd - trimStart)
+                        // This playback starts at t=0 relative to 'now'
+                        // So fade out should start at duration - fadeOut
+                        const playbackDuration = duration; // Calculated earlier
+                        const startFadeOut = playbackDuration - fadeOut;
+
+                        let fadeOutStartTime = now + startFadeOut;
+                        let fadeOutDur = fadeOut;
+
+                        if (startFadeOut < 0) {
+                            fadeOutStartTime = now;
+                            fadeOutDur = playbackDuration;
+                        }
+
+                        if (this.app.audio && this.app.audio.createSCurveFade) {
+                            if (startFadeOut > 0) gainNode.gain.setValueAtTime(1, fadeOutStartTime);
+                            else gainNode.gain.setValueAtTime(1, now);
+
+                            this.app.audio.createSCurveFade(gainNode, 1, 0, fadeOutDur, fadeOutStartTime);
+                        } else {
+                            if (startFadeOut > 0) {
+                                gainNode.gain.setValueAtTime(1, now + startFadeOut);
+                                gainNode.gain.linearRampToValueAtTime(0, now + playbackDuration);
+                            } else {
+                                // Short file case
+                                gainNode.gain.setValueAtTime(1, now);
+                                gainNode.gain.linearRampToValueAtTime(0, now + playbackDuration);
+                            }
+                        }
+                    }
+                }
 
                 source.start(0, startTime, duration);
                 this.waveform.previewSource = source;
