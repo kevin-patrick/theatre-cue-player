@@ -2351,6 +2351,22 @@ v0.9.8 - Last Updated January 1, 2026
                     }
                 }
 
+                // --- PAN FADE LOGIC ---
+                if (cue.pan !== undefined) {
+                    const targetPan = Math.max(-1, Math.min(1, cue.pan / 100)); // Normalize -1 to 1
+
+                    if (targetSession.instances) {
+                        targetSession.instances.forEach(inst => {
+                            if (inst.pannerNode) {
+                                const panner = inst.pannerNode;
+                                panner.pan.cancelScheduledValues(now);
+                                panner.pan.setValueAtTime(panner.pan.value, now);
+                                panner.pan.linearRampToValueAtTime(targetPan, now + duration);
+                            }
+                        });
+                    }
+                }
+
                 // Register Fade Cue Session (for pausing/holding)
                 const fadeSession = {
                     type: 'fade',
@@ -2393,6 +2409,15 @@ v0.9.8 - Last Updated January 1, 2026
                             const mg = session.targetSession.masterGain;
                             mg.gain.cancelScheduledValues(now);
                             mg.gain.setValueAtTime(mg.gain.value, now);
+                        }
+                        // HOLD PAN
+                        if (session.targetSession && session.targetSession.instances) {
+                            session.targetSession.instances.forEach(inst => {
+                                if (inst.pannerNode) {
+                                    inst.pannerNode.pan.cancelScheduledValues(now);
+                                    inst.pannerNode.pan.setValueAtTime(inst.pannerNode.pan.value, now);
+                                }
+                            });
                         }
                     } else {
                         // STOP AUDIO SESSION
