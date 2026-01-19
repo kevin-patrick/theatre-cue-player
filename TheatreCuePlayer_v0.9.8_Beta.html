@@ -4,9 +4,6 @@ Theatre Cue Player
 Developed by Kevin Patrick
 
 v0.9.8 - Last Updated January 1, 2026
-
-This work is licensed under a http://creativecommons.org/licenses/by-nc-nd/4.0/ 
-Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -1386,7 +1383,8 @@ Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Licen
                     onclick="showHelp('Quick Start', 'View the 5-step quick start guide', event)">?</span></button>
             <button onclick="startTutorial()" id="tutorialButton"
                 class="btn btn-outline-info first-time-setup-btn">Tutorial</button>
-            <button onclick="editModeFromLanding()" class="btn btn-info">Edit Mode<span class="help-icon"
+            <button id="editModeBtn" onclick="editModeFromLanding()" class="btn btn-info">Edit Mode<span
+                    class="help-icon"
                     onclick="showHelp('Edit Mode', 'Enable editing to modify cues, add new ones, and change settings', event)">?</span></button>
             <div id="editModeActions">
                 <button onclick="addAudioCue()" class="btn btn-primary">Add Audio Cue<span class="help-icon"
@@ -3783,6 +3781,14 @@ Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Licen
                             }
                             break;
 
+                        case 'e':
+                        case 'E':
+                            // Toggle Edit Mode
+                            if (!this.helpMode && !ctrlKey && !shiftKey) {
+                                this.toggleEditMode();
+                            }
+                            break;
+
                         case 'y':
                         case 'Y':
                             // Ctrl+Y = Redo
@@ -4356,10 +4362,8 @@ Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Licen
 
                 // DOM Updates
                 const actions = document.getElementById('editModeActions');
-                // Robust Selector: Find by onclick attribute (which never changes) OR text content
-                // The previous textContent check failed because innerHTML included a <span>
-                const btn = document.querySelector('button[onclick*="editModeFromLanding"]') ||
-                    Array.from(document.querySelectorAll('button')).find(b => b.innerHTML.includes('Edit Mode') || b.innerHTML.includes('Exit Edit'));
+                // Robust Selector: Use ID
+                const btn = document.getElementById('editModeBtn');
 
                 if (actions) {
                     actions.style.display = this.editMode ? 'block' : 'none';
@@ -5688,16 +5692,17 @@ Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Licen
         };
 
         window.editModeFromLanding = () => {
-            // Logic: If no project exists, create one. Then ensure Edit Mode is active.
-            if (app.state.cues.length === 0) {
+            // 1. If we are on the landing page (no project loaded), start a new one
+            // Check cues AND files to differentiate "New Project" vs "Just Loaded Audio"
+            if (app.state.cues.length === 0 && app.state.audioFilesLoaded === 0) {
                 app.state.newProject();
             }
+
+            // 2. Ensure project view is visible
             app.ui.showProject();
 
-            // Fix: Ensure we are in Edit Mode visibly and logically
-            if (!app.ui.editMode) {
-                app.ui.toggleEditMode();
-            }
+            // 3. Toggle the mode (ON -> OFF, or OFF -> ON)
+            app.ui.toggleEditMode();
         };
 
         window.saveCueFileAs = async () => {
