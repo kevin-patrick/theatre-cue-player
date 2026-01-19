@@ -5684,18 +5684,19 @@ v0.9.8 - Last Updated January 1, 2026
             app.ui.updateHeaderDisplay(); // Resets Header
         };
 
-        window.editModeFromLanding = () => {
-            // Logic: If no project exists, create one. Then ensure Edit Mode is active.
-            if (app.state.cues.length === 0) {
-                app.state.newProject();
-            }
-            app.ui.showProject();
+window.editModeFromLanding = () => {
+    // 1. If we are on the landing page (no project loaded), start a new one
+    // Check cues AND files to differentiate "New Project" vs "Just Loaded Audio"
+    if (app.state.cues.length === 0 && app.state.audioFilesLoaded === 0) {
+        app.state.newProject();
+    }
+    
+    // 2. Ensure project view is visible
+    app.ui.showProject();
 
-            // Fix: Ensure we are in Edit Mode visibly and logically
-            if (!app.ui.editMode) {
-                app.ui.toggleEditMode();
-            }
-        };
+    // 3. Toggle the mode (ON -> OFF, or OFF -> ON)
+    app.ui.toggleEditMode();
+};
 
         window.saveCueFileAs = async () => {
             // 1. Update Metadata
