@@ -5730,10 +5730,8 @@ v0.9.8 - Last Updated January 1, 2026
             }
             app.ui.showProject();
 
-            // Fix: Ensure we are in Edit Mode visibly and logically
-            if (!app.ui.editMode) {
-                app.ui.toggleEditMode();
-            }
+            // Fix: Toggle mode (handles both Enter and Exit)
+            app.ui.toggleEditMode();
         };
 
         window.saveCueFileAs = async () => {
